@@ -23,10 +23,24 @@ export default function SettingsPage() {
     setSaving(true)
     setMessage("")
     try {
-      await api.post("/api/simulate-delay", { trainId, minutes: Number(minutes) })
-      setMessage("Simulation requested.")
+      // Corrected payload structure
+      const payload = {
+        disruption: {
+          type: "delay",
+          delay_minutes: Number(minutes),
+          description: `Manual simulation for train ${trainId}`,
+        },
+        affected_trains: [trainId],
+      }
+      
+      // Corrected API endpoint URL
+      await api.post("/api/schedule/whatif", payload)
+      
+      setMessage("Simulation requested successfully.")
     } catch (e) {
-      setMessage("Failed to simulate.")
+      // Provide a more descriptive error message
+      const errorDetail = (e as any).response?.data?.detail || "An unknown error occurred."
+      setMessage(`Failed to simulate: ${errorDetail}`)
     } finally {
       setSaving(false)
     }
