@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState, useEffect } from "react"
 import { scaleTime, scaleBand } from "@visx/scale"
 import { AxisBottom, AxisLeft } from "@visx/axis"
 import { Group } from "@visx/group"
@@ -10,40 +10,64 @@ import { useMutation } from "@tanstack/react-query"
 import api from "@/lib/api"
 import { formatHM } from "@/lib/day"
 
-function timeDomainFromSchedule(schedule: any) {
-  const starts: Date[] = []
-  const ends: Date[] = []
-  schedule?.trains?.forEach((t: any) => {
+// Helper to process the schedule data into a format the Gantt chart can use
+function processScheduleForGantt(schedule: any[]) {
+  if (!schedule) return [];
+  return schedule.map((t: any) => ({
+    id: t.schedule_id,
+    name: `Train ${t.train_id}`, // Create a display name
+    delayMinutes: t.delay_minutes,
+    // Create a visual segment from planned to optimized time
+    segments: [
+      {
+        start: new Date(t.planned_time),
+        end: new Date(t.optimized_time),
+      },
+    ],
+  }));
+}
+
+function timeDomainFromProcessedData(data: any[]) {
+  const starts: Date[] = [];
+  const ends: Date[] = [];
+  data?.forEach((t: any) => {
     t.segments?.forEach((s: any) => {
-      starts.push(new Date(s.start))
-      ends.push(new Date(s.end))
-    })
-  })
-  const min = starts.length ? new Date(Math.min(...starts.map((d) => d.getTime()))) : new Date()
-  const max = ends.length
-    ? new Date(Math.max(...ends.map((d) => d.getTime())))
-    : new Date(Date.now() + 2 * 60 * 60 * 1000)
-  return [min, max] as const
+      starts.push(new Date(s.start));
+      ends.push(new Date(s.end));
+    });
+  });
+  if (starts.length === 0) {
+    const now = new Date();
+    return [now, new Date(now.getTime() + 2 * 60 * 60 * 1000)] as const;
+  }
+  const min = new Date(Math.min(...starts.map((d) => d.getTime())));
+  const max = new Date(Math.max(...ends.map((d) => d.getTime())));
+  return [min, max] as const;
 }
 
 export default function GanttPage() {
   const { data: schedule } = useSchedule()
-  const initOrder = schedule?.trains?.map((t: any) => t.id) || []
-  const [order, setOrder] = useState<string[]>(initOrder)
+  const processedData = useMemo(() => processScheduleForGantt(schedule), [schedule]);
+  
+  const [order, setOrder] = useState<string[]>([]);
+  
+  useEffect(() => {
+    setOrder(processedData.map((t: any) => t.id));
+  }, [processedData]);
+
   const svgRef = useRef<SVGSVGElement | null>(null)
 
   const orderedTrains = useMemo(() => {
-    const ids = order?.length ? order : initOrder
-    const map = new Map((schedule?.trains || []).map((t: any) => [t.id, t]))
-    return ids.map((id) => map.get(id)).filter(Boolean)
-  }, [schedule, order, initOrder])
+    const map = new Map((processedData || []).map((t: any) => [t.id, t]))
+    return order.map((id) => map.get(id)).filter(Boolean)
+  }, [processedData, order])
 
   const margin = { top: 20, right: 20, bottom: 40, left: 120 }
   const width = 1200
   const rowHeight = 34
   const height = (orderedTrains.length || 6) * rowHeight + margin.top + margin.bottom
 
-  const [minTime, maxTime] = timeDomainFromSchedule(schedule)
+  const [minTime, maxTime] = timeDomainFromProcessedData(orderedTrains)
   const xScale = scaleTime({ domain: [minTime, maxTime], range: [margin.left, width - margin.right] })
   const yScale = scaleBand({
     domain: orderedTrains.map((t: any) => t.name),
@@ -52,7 +76,7 @@ export default function GanttPage() {
   })
 
   const overrideMutation = useMutation({
-    mutationFn: async (newOrder: string[]) => api.post("/api/override", { order: newOrder }).then((r) => r.data),
+    mutationFn: async (newOrder: string[]) => api.post("/api/schedule/override", { order: newOrder }).then((r) => r.data),
   })
 
   function applyOverride() {
@@ -67,7 +91,7 @@ export default function GanttPage() {
         <div className="flex items-center gap-2">
           <button
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted/50"
-            onClick={() => setOrder(initOrder)}
+            onClick={() => setOrder(processedData.map((t: any) => t.id))}
           >
             Reset
           </button>

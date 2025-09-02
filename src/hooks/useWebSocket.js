@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toWsUrl } from "../utils/ws"
 
-export function useWebSocket(path = "/ws/live-updates") {
+export function useWebSocket(path = "/ws/updates") {
   const [data, setData] = useState(null)
   const wsRef = useRef(null)
   const timerRef = useRef(null)

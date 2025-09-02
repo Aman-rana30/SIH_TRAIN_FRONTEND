@@ -9,20 +9,23 @@ import { useMutation } from "@tanstack/react-query"
 import api from "@/lib/api"
 
 export default function DashboardPage() {
-  const { data: schedule, isLoading: scheduleLoading } = useSchedule()
-  const { data: recs } = useRecommendations()
+  const { data: scheduleData, isLoading: scheduleLoading } = useSchedule()
+  const { data: metricsData } = useRecommendations()
 
   const kpi = useMemo(() => {
-    const total = schedule?.trains?.length || 0
-    const conflicts = schedule?.conflicts || 0
+    // The schedule is the data array itself
+    const total = scheduleData?.length || 0
+    // We can get conflict info from metrics if available, otherwise default to 0
+    const conflicts = metricsData?.current_metrics?.conflicts_resolved || 0
     const avgDelay = Math.round(
-      (schedule?.trains?.reduce((acc: number, t: any) => acc + (t.delayMinutes || 0), 0) || 0) / (total || 1),
+      // The schedule is now a list of schedule objects
+      (scheduleData?.reduce((acc: number, t: any) => acc + (t.delay_minutes || 0), 0) || 0) / (total || 1),
     )
     const onTimePct = total
-      ? Math.round((schedule.trains.filter((t: any) => (t.delayMinutes || 0) <= 0).length / total) * 100)
+      ? Math.round((scheduleData.filter((t: any) => (t.delay_minutes || 0) <= 0).length / total) * 100)
       : 0
     return { total, conflicts, avgDelay, onTimePct }
-  }, [schedule])
+  }, [scheduleData, metricsData])
 
   const spark = useMemo(() => {
     const len = 12
@@ -37,9 +40,9 @@ export default function DashboardPage() {
     mutationFn: async (order: string[]) => api.post("/api/override", { order }).then((r) => r.data),
   })
 
-  function applyRecommendation() {
-    const order: string[] = recs?.order || []
-    if (order.length) overrideMutation.mutate(order)
+  function applyRecommendation(rec: string) {
+    // You can define what applying a recommendation does, e.g., trigger an API call
+    console.log("Applying recommendation:", rec)
   }
 
   return (
@@ -90,24 +93,19 @@ export default function DashboardPage() {
               </a>
             </div>
             <p className="text-sm text-muted-foreground">
-              {schedule?.trains
-                ?.slice(0, 3)
-                .map((t: any) => t.name)
-                .join(", ") || "Loading schedule..."}
+              {scheduleData?.length
+                ? `Tracking ${scheduleData.length} active trains.`
+                : "Loading schedule..."}
             </p>
           </div>
         </div>
         <div className="space-y-3">
-          <RecommendationCard
-            title={recs?.title || "Optimize order to reduce delays"}
-            detail={
-              recs?.detail ||
-              "AI proposes reordering expresses before locals at Junction 12 to minimize cascading delays."
-            }
-            onApply={applyRecommendation}
-          />
-          {recs?.secondary?.map((r: any, i: number) => (
-            <RecommendationCard key={i} title={r.title} detail={r.detail} onApply={applyRecommendation} />
+          {/* Use the recommendations and alerts from the metrics endpoint */}
+          {metricsData?.recommendations?.map((rec: string, i: number) => (
+             <RecommendationCard key={`rec-${i}`} title={rec} onApply={() => applyRecommendation(rec)} />
+          ))}
+          {metricsData?.alerts?.map((alert: string, i: number) => (
+             <RecommendationCard key={`alert-${i}`} title={alert} detail="System Alert" onApply={() => {}} />
           ))}
         </div>
       </div>
