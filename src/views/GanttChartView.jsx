@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useRef } from "react"
+import { useMemo, useState, useRef, useEffect } from "react"
 import { scaleTime, scaleBand } from "@visx/scale"
 import { AxisBottom, AxisLeft } from "@visx/axis"
 import { Group } from "@visx/group"
@@ -10,10 +10,28 @@ import { useSchedule } from "../hooks/useTrainData"
 import { useMutation } from "@tanstack/react-query"
 import api from "../services/api"
 
+// --- START FIX: Process schedule data correctly ---
+function processScheduleForGantt(schedule) {
+  if (!schedule) return [];
+  // The backend now returns a flat list of schedule objects
+  return schedule.map((t) => ({
+    id: t.schedule_id,
+    name: `Train ${t.train_id}`, // Use the actual train_id
+    delayMinutes: t.delay_minutes,
+    segments: [
+      {
+        start: new Date(t.planned_time),
+        end: new Date(t.optimized_time),
+      },
+    ],
+  }));
+}
+// --- END FIX ---
+
 function timeDomainFromSchedule(schedule) {
   const starts = []
   const ends = []
-  schedule?.trains?.forEach((t) => {
+  schedule?.forEach((t) => {
     t.segments?.forEach((s) => {
       starts.push(new Date(s.start))
       ends.push(new Date(s.end))
@@ -26,22 +44,30 @@ function timeDomainFromSchedule(schedule) {
 
 export default function GanttChartView() {
   const { data: schedule } = useSchedule()
-  const [order, setOrder] = useState(() => schedule?.trains?.map((t) => t.id) || [])
+  const processedData = useMemo(() => processScheduleForGantt(schedule), [schedule]);
+  
+  const [order, setOrder] = useState([]);
+
+  useEffect(() => {
+    if (processedData) {
+      setOrder(processedData.map(t => t.id));
+    }
+  }, [processedData]);
+  
   const svgRef = useRef(null)
 
   // sync order when schedule loads
   const orderedTrains = useMemo(() => {
-    const ids = order?.length ? order : schedule?.trains?.map((t) => t.id) || []
-    const map = new Map((schedule?.trains || []).map((t) => [t.id, t]))
-    return ids.map((id) => map.get(id)).filter(Boolean)
-  }, [schedule, order])
+    const map = new Map((processedData || []).map((t) => [t.id, t]))
+    return order.map((id) => map.get(id)).filter(Boolean)
+  }, [processedData, order])
 
   const margin = { top: 20, right: 20, bottom: 40, left: 120 }
   const width = 1200
   const rowHeight = 34
   const height = (orderedTrains.length || 6) * rowHeight + margin.top + margin.bottom
 
-  const [minTime, maxTime] = timeDomainFromSchedule(schedule)
+  const [minTime, maxTime] = timeDomainFromSchedule(orderedTrains)
   const xScale = scaleTime({ domain: [minTime, maxTime], range: [margin.left, width - margin.right] })
   const yScale = scaleBand({
     domain: orderedTrains.map((t) => t.name),
@@ -63,7 +89,7 @@ export default function GanttChartView() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Gantt — Train Schedule</h2>
         <div className="flex items-center gap-2">
-          <button className="btn btn-secondary" onClick={() => setOrder(schedule?.trains?.map((t) => t.id) || [])}>
+          <button className="btn btn-secondary" onClick={() => setOrder(processedData.map(t => t.id) || [])}>
             Reset
           </button>
           <button className="btn btn-primary" onClick={applyOverride}>
@@ -91,7 +117,7 @@ export default function GanttChartView() {
           />
 
           <Group>
-            {orderedTrains.map((t, idx) => {
+            {orderedTrains.map((t) => {
               const y = yScale(t.name)
               if (y == null) return null
               return (
