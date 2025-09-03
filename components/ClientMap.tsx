@@ -17,7 +17,7 @@ type Pos = { lat: number; lng: number; speed?: number; delayMinutes?: number; na
 
 export default function ClientMap() {
   const [positions, setPositions] = useState<Record<string, Pos>>({})
-  const wsData = useWebSocket("/ws/live-updates")
+  const wsData = useWebSocket("/ws/updates")
 
   useEffect(() => {
     if (!wsData) return
