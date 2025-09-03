@@ -9,7 +9,20 @@ export function useWebSocket(path = "/ws/updates") {
   const timerRef = useRef<any>(null)
 
   useEffect(() => {
-    const url = toWsUrl(path)
+    // Get sectionId from localStorage
+    const userData = typeof window !== 'undefined' 
+      ? JSON.parse(localStorage.getItem("rcd_user") || '{}')
+      : {};
+    const sectionId = userData?.sectionId;
+    
+    if (!sectionId) {
+      console.warn('No sectionId found in localStorage for WebSocket connection');
+      return;
+    }
+    
+    const url = toWsUrl(path, {
+      query: { section_id: sectionId }
+    })
     function connect() {
       try {
         wsRef.current = new WebSocket(url)

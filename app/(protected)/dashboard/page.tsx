@@ -93,9 +93,11 @@ export default function DashboardPage() {
               </a>
             </div>
             <p className="text-sm text-muted-foreground">
-              {scheduleData?.length
-                ? `Tracking ${scheduleData.length} active trains.`
-                : "Loading schedule..."}
+              {scheduleLoading 
+                ? "Loading schedule..."
+                : scheduleData?.length 
+                  ? `Tracking ${scheduleData.length} active trains.`
+                  : "No active trains found for this section. Try running a simulation to generate data."}
             </p>
           </div>
         </div>

@@ -7,14 +7,22 @@ import { useState } from "react"
 
 export default function LoginPage() {
   const [name, setName] = useState("")
+  const [sectionId, setSectionId] = useState("")
   const router = useRouter()
   const search = useSearchParams()
   const redirectTo = search.get("redirect") || "/dashboard"
 
   function login(e: React.FormEvent) {
     e.preventDefault()
+    if (!sectionId) {
+      alert("Please enter a Section ID")
+      return
+    }
     localStorage.setItem("rcd_token", "mock-token")
-    localStorage.setItem("rcd_user", JSON.stringify({ name: name || "Controller A" }))
+    localStorage.setItem("rcd_user", JSON.stringify({ 
+      name: name || "Controller A",
+      sectionId: sectionId
+    }))
     router.replace(redirectTo)
   }
 
@@ -34,6 +42,17 @@ export default function LoginPage() {
               placeholder="e.g., Alice K."
               value={name}
               onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-muted-foreground">Section ID</label>
+            <input
+              className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2 outline-none ring-offset-background focus:ring-2 focus:ring-[hsl(var(--chart-2))]"
+              placeholder="e.g., JUC-LHD"
+              value={sectionId}
+              onChange={(e) => setSectionId(e.target.value)}
+              required
             />
           </div>
           <button
