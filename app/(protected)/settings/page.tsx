@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [minutes, setMinutes] = useState("5")
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
+  const [simulationResult, setSimulationResult] = useState<any>(null)
 
   useEffect(() => {
     const el = document.documentElement
@@ -22,8 +23,8 @@ export default function SettingsPage() {
     e.preventDefault()
     setSaving(true)
     setMessage("")
+    setSimulationResult(null)
     try {
-      // Corrected payload structure
       const payload = {
         disruption: {
           type: "delay",
@@ -32,13 +33,10 @@ export default function SettingsPage() {
         },
         affected_trains: [trainId],
       }
-      
-      // Corrected API endpoint URL
-      await api.post("/api/schedule/whatif", payload)
-      
+      const response = await api.post("/api/schedule/whatif", payload)
+      setSimulationResult(response.data)
       setMessage("Simulation requested successfully.")
     } catch (e) {
-      // Provide a more descriptive error message
       const errorDetail = (e as any).response?.data?.detail || "An unknown error occurred."
       setMessage(`Failed to simulate: ${errorDetail}`)
     } finally {
@@ -96,6 +94,52 @@ export default function SettingsPage() {
           </div>
         </form>
         {message && <div className="mt-3 text-sm text-muted-foreground">{message}</div>}
+
+        {/* Simulation Results Card */}
+        {simulationResult && (
+          <div className="mt-6 rounded-xl border border-border bg-muted/20 p-4 shadow">
+            <h4 className="text-md font-semibold mb-2">Simulation Results</h4>
+            {/* Display relevant metrics if present */}
+            {simulationResult.metrics && (
+              <div className="mb-2 text-sm">
+                <div><span className="font-medium">Total Delay:</span> {simulationResult.metrics.total_delay} min</div>
+                <div><span className="font-medium">Affected Trains:</span> {simulationResult.metrics.affected_trains?.join(", ")}</div>
+              </div>
+            )}
+            {/* Display new schedules if present */}
+            {simulationResult.schedules && Array.isArray(simulationResult.schedules) && simulationResult.schedules.length > 0 && (
+              <div className="mt-2">
+                <div className="font-medium mb-1">Updated Schedules:</div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border border-border rounded-lg">
+                    <thead>
+                      <tr className="bg-muted/40">
+                        <th className="px-2 py-1 border border-border">Train ID</th>
+                        <th className="px-2 py-1 border border-border">Planned Time</th>
+                        <th className="px-2 py-1 border border-border">Optimized Time</th>
+                        <th className="px-2 py-1 border border-border">Delay (min)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {simulationResult.schedules.map((sch: any) => (
+                        <tr key={sch.schedule_id}>
+                          <td className="px-2 py-1 border border-border">{sch.train?.train_id || sch.train_id}</td>
+                          <td className="px-2 py-1 border border-border">{sch.planned_time ? new Date(sch.planned_time).toLocaleString() : "N/A"}</td>
+                          <td className="px-2 py-1 border border-border">{sch.optimized_time ? new Date(sch.optimized_time).toLocaleString() : "N/A"}</td>
+                          <td className="px-2 py-1 border border-border">{sch.delay_minutes ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {/* Fallback for other data */}
+            {!simulationResult.schedules && !simulationResult.metrics && (
+              <pre className="mt-2 text-xs bg-muted/10 p-2 rounded">{JSON.stringify(simulationResult, null, 2)}</pre>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

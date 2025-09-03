@@ -234,10 +234,24 @@ export default function GanttPage() {
               <div>{selectedTrain.details.platform_need}</div>
 
               <div className="font-semibold text-muted-foreground">Scheduled Arrival</div>
-              <div>{new Date(selectedTrain.details.arrival_time).toLocaleString()}</div>
+              <div>
+                {(() => {
+                  const val = selectedTrain.details.arrival_time;
+                  if (!val) return "N/A";
+                  const date = new Date(val);
+                  return isNaN(date.getTime()) ? val : date.toLocaleString();
+                })()}
+              </div>
 
               <div className="font-semibold text-muted-foreground">Scheduled Departure</div>
-              <div>{new Date(selectedTrain.details.departure_time).toLocaleString()}</div>
+              <div>
+                {(() => {
+                  const val = selectedTrain.details.departure_time;
+                  if (!val) return "N/A";
+                  const date = new Date(val);
+                  return isNaN(date.getTime()) ? val : date.toLocaleString();
+                })()}
+              </div>
             </div>
           )}
         </DialogContent>
