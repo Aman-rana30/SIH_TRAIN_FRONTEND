@@ -4,8 +4,11 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import api from "@/lib/api"
+import { useSchedule } from "@/hooks/use-train-data"
 
 export default function SettingsPage() {
+  // Get active trains for the section
+  const { data: activeSchedule } = useSchedule()
   const [dark, setDark] = useState(true)
   const [trainId, setTrainId] = useState("")
   const [minutes, setMinutes] = useState("5")
@@ -33,7 +36,14 @@ export default function SettingsPage() {
         },
         affected_trains: [trainId],
       }
-      const response = await api.post("/api/schedule/whatif", payload)
+      // Get sectionId from localStorage
+      const sectionId = (typeof window !== "undefined" &&
+        JSON.parse(localStorage.getItem("rcd_user") || '{"sectionId": ""}').sectionId) || ""
+      // Pass sectionId as query param if present
+      const url = sectionId
+        ? `/api/schedule/whatif?section_id=${encodeURIComponent(sectionId)}`
+        : "/api/schedule/whatif"
+      const response = await api.post(url, payload)
       setSimulationResult(response.data)
       setMessage("Simulation requested successfully.")
     } catch (e) {
@@ -106,7 +116,7 @@ export default function SettingsPage() {
                 <div><span className="font-medium">Affected Trains:</span> {simulationResult.metrics.affected_trains?.join(", ")}</div>
               </div>
             )}
-            {/* Display new schedules if present */}
+            {/* Display new schedules if present, filtered to only active trains */}
             {simulationResult.schedules && Array.isArray(simulationResult.schedules) && simulationResult.schedules.length > 0 && (
               <div className="mt-2">
                 <div className="font-medium mb-1">Updated Schedules:</div>
@@ -115,15 +125,24 @@ export default function SettingsPage() {
                     <thead>
                       <tr className="bg-muted/40">
                         <th className="px-2 py-1 border border-border">Train ID</th>
+                        <th className="px-2 py-1 border border-border">Type</th>
                         <th className="px-2 py-1 border border-border">Planned Time</th>
                         <th className="px-2 py-1 border border-border">Optimized Time</th>
                         <th className="px-2 py-1 border border-border">Delay (min)</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {simulationResult.schedules.map((sch: any) => (
+                      {(activeSchedule && Array.isArray(activeSchedule)
+                        ? simulationResult.schedules.filter((sch: any) => {
+                            // Match train_id in sch with any train in activeSchedule
+                            const schId = sch.train?.train_id || sch.train_id;
+                            return activeSchedule.some((t: any) => (t.train?.train_id || t.train_id) === schId);
+                          })
+                        : simulationResult.schedules
+                      ).map((sch: any) => (
                         <tr key={sch.schedule_id}>
                           <td className="px-2 py-1 border border-border">{sch.train?.train_id || sch.train_id}</td>
+                          <td className="px-2 py-1 border border-border">{sch.train?.type || "N/A"}</td>
                           <td className="px-2 py-1 border border-border">{sch.planned_time ? new Date(sch.planned_time).toLocaleString() : "N/A"}</td>
                           <td className="px-2 py-1 border border-border">{sch.optimized_time ? new Date(sch.optimized_time).toLocaleString() : "N/A"}</td>
                           <td className="px-2 py-1 border border-border">{sch.delay_minutes ?? 0}</td>
