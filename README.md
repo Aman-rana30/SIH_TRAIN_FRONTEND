@@ -43,11 +43,11 @@ Create a .env.local for local development using the template in .env.example. In
 Note: In Next.js, only variables prefixed with NEXT_PUBLIC_ are available on the client.
 
 ## REST and WebSocket Endpoints
-- GET /api/schedule → schedules & conflicts
-- GET /api/recommendations → AI-optimized order
-- POST /api/override → manual order after Gantt reorder
-- POST /api/simulate-delay → what-if simulation
-- WebSocket: /ws/live-updates → positions + delay changes
+- `GET /api/schedule/current` → Get the current active and optimized train schedules.
+- `GET /api/metrics/` → Get system performance metrics, alerts, and AI recommendations.
+- `POST /api/schedule/override` → Submit a manual override from the Gantt chart.
+- `POST /api/schedule/whatif` → Run a what-if disruption simulation.
+- `WebSocket: /ws/updates` → Establish a WebSocket for live train position updates.
 
 Set these paths relative to NEXT_PUBLIC_API_BASE_URL and NEXT_PUBLIC_WS_BASE_URL.
 
