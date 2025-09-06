@@ -18,11 +18,12 @@ export function useSchedule() {
         return [];
       }
       
-      const { data } = await api.get(`/api/schedule/current?section_id=${encodeURIComponent(sectionId)}`);
+      const { data } = await api.get(`/api/schedule/current/refresh?section_id=${encodeURIComponent(sectionId)}`);
       return data;
     },
     enabled: typeof window !== 'undefined' && !!localStorage.getItem("rcd_user"),
-    staleTime: 10_000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -35,5 +36,23 @@ export function useRecommendations() {
       return data;
     },
     staleTime: 30_000,
+  });
+}
+
+// Fetch all sections with calculated travel times so we can compute clearing time
+export function useSections() {
+  return useQuery({
+    queryKey: ["sections"],
+    queryFn: async () => {
+      const { data } = await api.get("/api/schedule/sections");
+      return data as Array<{
+        section_id: string;
+        length_km: number;
+        max_speed_kmh: number;
+        description?: string;
+        calculated_travel_time_minutes: number;
+      }>;
+    },
+    staleTime: 60_000,
   });
 }

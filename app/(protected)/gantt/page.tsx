@@ -5,7 +5,7 @@ import { scaleTime, scaleBand } from "@visx/scale"
 import { AxisBottom, AxisLeft } from "@visx/axis"
 import { Group } from "@visx/group"
 import { Reorder } from "framer-motion"
-import { useSchedule } from "@/hooks/use-train-data"
+import { useSchedule, useSections } from "@/hooks/use-train-data"
 import { useMutation } from "@tanstack/react-query"
 import api from "@/lib/api"
 import { formatHM } from "@/lib/day"
@@ -60,6 +60,7 @@ function timeDomainFromProcessedData(data: any[]) {
 
 export default function GanttPage() {
   const { data: schedule } = useSchedule();
+  const { data: sections } = useSections();
   const processedData = useMemo(() => processScheduleForGantt(schedule), [schedule]);
   
   const [order, setOrder] = useState<string[]>([]);
@@ -250,6 +251,54 @@ export default function GanttPage() {
                   if (!val) return "N/A";
                   const date = new Date(val);
                   return isNaN(date.getTime()) ? val : date.toLocaleString();
+                })()}
+              </div>
+
+              {/* New calculated departure considering delay */}
+              <div className="font-semibold text-muted-foreground">New Scheduled Departure</div>
+              <div>
+                {(() => {
+                  const base = selectedTrain.details?.departure_time;
+                  if (!base) return "N/A";
+                  const baseDate = new Date(base);
+                  if (isNaN(baseDate.getTime())) return "N/A";
+                  const delay = Number(selectedTrain.delayMinutes || 0);
+                  const newDate = new Date(baseDate.getTime() + delay * 60 * 1000);
+                  const isDelayed = delay > 0;
+                  return (
+                    <span className={isDelayed ? "text-red-500 font-semibold" : "text-green-500 font-semibold"}>
+                      {newDate.toLocaleString()}
+                    </span>
+                  );
+                })()}
+              </div>
+
+              {/* Section clearing time computed from NEW departure + section travel time */}
+              <div className="font-semibold text-muted-foreground">Section Clears At</div>
+              <div>
+                {(() => {
+                  try {
+                    const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("rcd_user") || '{}') : {};
+                    const sectionId: string | undefined = user?.sectionId;
+
+                    const depRaw = selectedTrain.details?.departure_time;
+                    if (!sectionId || !depRaw) return "N/A";
+                    const depDate = new Date(depRaw);
+                    if (isNaN(depDate.getTime())) return "N/A";
+
+                    // add delay to departure first
+                    const delay = Number(selectedTrain.delayMinutes || 0);
+                    const effectiveDeparture = new Date(depDate.getTime() + delay * 60 * 1000);
+
+                    // Lookup travel time for the controller’s section
+                    const travel = (sections || []).find((s: any) => s.section_id === sectionId)?.calculated_travel_time_minutes;
+                    if (!travel || isNaN(Number(travel))) return "N/A";
+
+                    const clearDate = new Date(effectiveDeparture.getTime() + Number(travel) * 60 * 1000);
+                    return <span className="text-green-500 font-semibold">{clearDate.toLocaleString()}</span>;
+                  } catch (e) {
+                    return "N/A";
+                  }
                 })()}
               </div>
             </div>

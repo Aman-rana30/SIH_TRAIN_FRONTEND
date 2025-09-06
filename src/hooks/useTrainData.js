@@ -5,10 +5,15 @@ export function useSchedule() {
   return useQuery({
     queryKey: ["schedule"],
     queryFn: async () => {
-      const { data } = await api.get("/api/schedule")
+      const sectionId = JSON.parse(localStorage.getItem("rcd_user") || "{}")?.sectionId
+      const url = sectionId
+        ? `/api/schedule/current/refresh?section_id=${encodeURIComponent(sectionId)}`
+        : `/api/schedule/current/refresh`
+      const { data } = await api.get(url)
       return data
     },
-    staleTime: 10_000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   })
 }
 
