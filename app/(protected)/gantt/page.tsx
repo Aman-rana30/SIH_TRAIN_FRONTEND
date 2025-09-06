@@ -9,6 +9,7 @@ import { useSchedule, useSections } from "@/hooks/use-train-data"
 import { useMutation } from "@tanstack/react-query"
 import api from "@/lib/api"
 import { formatHM } from "@/lib/day"
+import { cn } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -124,82 +125,248 @@ export default function GanttPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-2 shadow-lg overflow-x-auto">
-          <svg ref={svgRef} width={width} height={height} role="img" aria-label="Train Schedule Gantt">
-            <AxisBottom
-              top={height - margin.bottom}
-              scale={xScale}
-              tickFormat={(d: any) => formatHM(d)}
-              stroke="hsl(var(--border))"
-              tickStroke="hsl(var(--border))"
-              tickLabelProps={() => ({ fill: "hsl(var(--muted-foreground))", fontSize: 12 })}
-            />
-            <AxisLeft
-              left={margin.left}
-              scale={yScale}
-              stroke="hsl(var(--border))"
-              tickStroke="hsl(var(--border))"
-              tickLabelProps={() => ({ fill: "hsl(var(--muted-foreground))", fontSize: 12, textAnchor: 'end', dx: '-0.5em' })}
-            />
+        <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">
+          {/* Chart Header */}
+          <div className="border-b border-border bg-muted/30 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Schedule Timeline</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {orderedTrains.length} trains • Drag to reorder • Click for details
+                </p>
+              </div>
+              <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded bg-chart-2" />
+                  <span className="text-muted-foreground">On Time</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded bg-destructive" />
+                  <span className="text-muted-foreground">Delayed</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded bg-warning" />
+                  <span className="text-muted-foreground">Conflict</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Chart Container */}
+          <div className="p-4 overflow-x-auto">
+            <svg ref={svgRef} width={width} height={height} role="img" aria-label="Train Schedule Gantt" className="bg-background">
+              {/* Grid lines */}
+              <defs>
+                <pattern id="grid" width="60" height="34" patternUnits="userSpaceOnUse">
+                  <path d="M 60 0 L 0 0 0 34" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+              
+              {/* Time axis */}
+              <AxisBottom
+                top={height - margin.bottom}
+                scale={xScale}
+                tickFormat={(d: any) => formatHM(d)}
+                stroke="hsl(var(--border))"
+                tickStroke="hsl(var(--border))"
+                tickLabelProps={() => ({ 
+                  fill: "hsl(var(--muted-foreground))", 
+                  fontSize: 11, 
+                  fontWeight: 500,
+                  textAnchor: 'middle'
+                })}
+              />
+              
+              {/* Train names axis */}
+              <AxisLeft
+                left={margin.left}
+                scale={yScale}
+                stroke="hsl(var(--border))"
+                tickStroke="hsl(var(--border))"
+                tickLabelProps={() => ({ 
+                  fill: "hsl(var(--foreground))", 
+                  fontSize: 12, 
+                  fontWeight: 600,
+                  textAnchor: 'end', 
+                  dx: '-0.75em'
+                })}
+              />
 
-            <Group>
-              {orderedTrains.map((t: any) => {
-                const y = yScale(t.name);
-                if (y === undefined) return null;
-                return (
-                  <g key={t.id}>
-                    {t.segments?.map((s: any, i: number) => {
-                      const x1 = xScale(new Date(s.start));
-                      const x2 = xScale(new Date(s.end));
-                      const w = Math.max(2, x2 - x1);
-                      const delayed = (t.delayMinutes || 0) > 0;
-                      return (
-                        <rect
-                          key={i}
-                          x={x1}
-                          y={y}
-                          width={w}
-                          height={yScale.bandwidth()}
-                          rx={6}
-                          fill={delayed ? "#ef4444" : "hsl(var(--chart-2))"}
-                          opacity={0.9}
-                        />
-                      );
-                    })}
-                  </g>
-                );
-              })}
-            </Group>
-          </svg>
+              {/* Train schedule bars */}
+              <Group>
+                {orderedTrains.map((t: any, trainIndex: number) => {
+                  const y = yScale(t.name);
+                  if (y === undefined) return null;
+                  const delayed = (t.delayMinutes || 0) > 0;
+                  const hasConflict = false; // TODO: Add conflict detection logic
+                  
+                  return (
+                    <g key={t.id}>
+                      {/* Background row highlight on hover */}
+                      <rect
+                        x={margin.left}
+                        y={y - 2}
+                        width={width - margin.left - margin.right}
+                        height={yScale.bandwidth() + 4}
+                        fill="hsl(var(--muted))"
+                        opacity="0"
+                        className="hover:opacity-20 transition-opacity cursor-pointer"
+                        onClick={() => setSelectedTrain(t)}
+                      />
+                      
+                      {t.segments?.map((s: any, i: number) => {
+                        const x1 = xScale(new Date(s.start));
+                        const x2 = xScale(new Date(s.end));
+                        const w = Math.max(4, x2 - x1);
+                        const barHeight = yScale.bandwidth() - 4;
+                        
+                        return (
+                          <g key={i}>
+                            {/* Main schedule bar */}
+                            <rect
+                              x={x1}
+                              y={y + 2}
+                              width={w}
+                              height={barHeight}
+                              rx={8}
+                              fill={hasConflict ? "hsl(var(--warning))" : delayed ? "hsl(var(--destructive))" : "hsl(var(--chart-2))"}
+                              stroke={delayed ? "hsl(var(--destructive))" : "hsl(var(--chart-2))"}
+                              strokeWidth={1}
+                              opacity={0.9}
+                              className="hover:opacity-100 transition-all cursor-pointer drop-shadow-sm"
+                              onClick={() => setSelectedTrain(t)}
+                            />
+                            
+                            {/* Progress indicator for active trains */}
+                            {trainIndex < 3 && (
+                              <rect
+                                x={x1}
+                                y={y + 2}
+                                width={w * 0.6} // 60% progress
+                                height={barHeight}
+                                rx={8}
+                                fill={delayed ? "hsl(var(--destructive))" : "hsl(var(--success))"}
+                                opacity={0.3}
+                              />
+                            )}
+                            
+                            {/* Delay indicator */}
+                            {delayed && (
+                              <circle
+                                cx={x2 - 8}
+                                cy={y + barHeight/2 + 2}
+                                r={3}
+                                fill="hsl(var(--destructive))"
+                                className="animate-pulse-subtle"
+                              />
+                            )}
+                            
+                            {/* Train info on bar (if wide enough) */}
+                            {w > 80 && (
+                              <text
+                                x={x1 + w/2}
+                                y={y + barHeight/2 + 6}
+                                textAnchor="middle"
+                                fontSize={10}
+                                fontWeight={600}
+                                fill="white"
+                                opacity={0.9}
+                              >
+                                {t.name.split(' ')[1] || t.name}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      })}
+                    </g>
+                  );
+                })}
+              </Group>
+            </svg>
+          </div>
 
-          <div className="mt-4 border-t border-border pt-3">
-            <div className="mb-2 text-sm text-muted-foreground">Reorder Trains (vertical drag) - Click any train for details</div>
+          {/* Train List for Reordering */}
+          <div className="border-t border-border bg-muted/20 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">Train Priority Order</h4>
+                <p className="text-xs text-muted-foreground">Drag to reorder • Click for details</p>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {orderedTrains.filter(t => (t.delayMinutes || 0) > 0).length} delayed
+              </div>
+            </div>
+            
             <Reorder.Group
               axis="y"
               values={orderedTrains}
               onReorder={(items) => setOrder(items.map((t: any) => t.id))}
-              className="space-y-2"
+              className="space-y-2 max-h-64 overflow-y-auto"
             >
-              {orderedTrains.map((t: any) => (
-                <Reorder.Item
-                  key={t.id}
-                  value={t}
-                  onClick={() => setSelectedTrain(t)}
-                  className="flex cursor-grab items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 active:cursor-grabbing hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`h-2 w-2 rounded-full ${
-                        (t.delayMinutes || 0) > 0 ? "bg-red-500" : "bg-[hsl(var(--chart-2))]"
-                      }`}
-                    />
-                    <div className="font-medium">{t.name}</div>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Delay: {t.delayMinutes || 0}m • Type: {t.details?.type || 'N/A'}
-                  </div>
-                </Reorder.Item>
-              ))}
+              {orderedTrains.map((t: any, index: number) => {
+                const delayed = (t.delayMinutes || 0) > 0;
+                const isActive = index < 3; // First 3 are "active"
+                
+                return (
+                  <Reorder.Item
+                    key={t.id}
+                    value={t}
+                    onClick={() => setSelectedTrain(t)}
+                    className={cn(
+                      "group flex cursor-grab items-center justify-between rounded-xl border p-3 transition-all duration-200",
+                      "hover:shadow-sm active:cursor-grabbing active:scale-[0.98]",
+                      delayed 
+                        ? "border-destructive/20 bg-destructive/5 hover:bg-destructive/10" 
+                        : "border-border bg-card hover:bg-accent/50",
+                      isActive && "ring-1 ring-primary/20"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Priority indicator */}
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
+                        {index + 1}
+                      </div>
+                      
+                      {/* Status indicator */}
+                      <div className={cn(
+                        "h-2 w-2 rounded-full",
+                        delayed ? "bg-destructive animate-pulse-subtle" : "bg-success"
+                      )} />
+                      
+                      {/* Train info */}
+                      <div className="flex flex-col">
+                        <div className="font-semibold text-sm text-foreground">{t.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {t.details?.type || 'Unknown'} • {t.details?.origin || 'N/A'} → {t.details?.destination || 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 text-right">
+                      {/* Delay info */}
+                      <div className="flex flex-col">
+                        <div className={cn(
+                          "text-sm font-semibold",
+                          delayed ? "text-destructive" : "text-success"
+                        )}>
+                          {delayed ? `+${t.delayMinutes}m` : 'On Time'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Priority: {t.details?.priority || 'Normal'}
+                        </div>
+                      </div>
+                      
+                      {/* Active indicator */}
+                      {isActive && (
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10">
+                          <div className="h-2 w-2 rounded-full bg-primary animate-pulse-subtle" />
+                        </div>
+                      )}
+                    </div>
+                  </Reorder.Item>
+                );
+              })}
             </Reorder.Group>
           </div>
         </div>

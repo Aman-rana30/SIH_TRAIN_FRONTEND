@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
-import "./globals.css"; // <-- ADD THIS LINE
+import "./globals.css";
 import QueryProvider from "@/components/providers/query-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
@@ -21,9 +22,16 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <Suspense fallback={<div>Loading...</div>}>
-          <QueryProvider>{children}</QueryProvider>
-        </Suspense>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Suspense fallback={<div>Loading...</div>}>
+            <QueryProvider>{children}</QueryProvider>
+          </Suspense>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>
