@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
-  title: "Railway Controller Dashboard",
+  title: "Controller Sarthi",
   description: "Created with v0",
   generator: "v0.app",
 };

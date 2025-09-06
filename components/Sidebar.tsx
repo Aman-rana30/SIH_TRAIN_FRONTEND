@@ -86,8 +86,7 @@ export default function Sidebar() {
             </div>
             {isOpen && (
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg font-bold text-foreground truncate">RailControl</h1>
-                <p className="text-xs text-muted-foreground">Dashboard</p>
+                <h1 className="text-lg font-bold text-foreground truncate">Sarthi</h1>
               </div>
             )}
           </motion.div>

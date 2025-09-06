@@ -31,7 +31,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-lg">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-[hsl(var(--chart-2))]" />
-          <h2 className="text-xl font-semibold">Railway Controller Login</h2>
+          <h2 className="text-xl font-semibold"> Controller Sarthi Login</h2>
           <p className="text-sm text-muted-foreground">Mock login for demo</p>
         </div>
         <form onSubmit={login} className="space-y-3">

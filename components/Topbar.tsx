@@ -50,7 +50,7 @@ export default function Topbar() {
         {/* Left section - Title and status */}
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-lg font-bold text-foreground">Railway Controller Dashboard</h1>
+            <h1 className="text-lg font-bold text-foreground">Controller Sarthi Dashboard</h1>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Wifi className="h-3 w-3" />
               <span>Connected</span>
@@ -99,7 +99,7 @@ export default function Topbar() {
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{controller.name}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    Railway Controller
+                    Controller Sarthi
                   </p>
                 </div>
               </DropdownMenuLabel>
