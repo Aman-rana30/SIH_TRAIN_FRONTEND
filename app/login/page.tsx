@@ -49,7 +49,7 @@ export default function LoginPage() {
             <label className="mb-1 block text-sm text-muted-foreground">Section ID</label>
             <input
               className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2 outline-none ring-offset-background focus:ring-2 focus:ring-[hsl(var(--chart-2))]"
-              placeholder="e.g., JUC-LHD"
+              placeholder="e.g., JUC-LDH"
               value={sectionId}
               onChange={(e) => setSectionId(e.target.value)}
               required
