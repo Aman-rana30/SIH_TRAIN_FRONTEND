@@ -21,21 +21,37 @@ import {
 // Helper to process the schedule data into a format the Gantt chart can use
 function processScheduleForGantt(schedule: any[]) {
   if (!schedule) return [];
-  return schedule.map((t: any) => ({
-    id: t.schedule_id,
-    // Use the train_id from the nested train object for the display name
-    name: t.train?.train_id || `Train ${t.train_id}`, 
-    delayMinutes: t.delay_minutes,
-    // Pass the full train details object to be used by the modal
-    details: t.train, 
-    // Create a visual segment from planned to optimized time
-    segments: [
-      {
-        start: new Date(t.planned_time),
-        end: new Date(t.optimized_time),
-      },
-    ],
-  }));
+
+  const BUFFER_MINUTES = 12; // green box duration after departure
+
+  return schedule.map((t: any) => {
+    const planned = new Date(t.planned_time);
+    const optimized = new Date(t.optimized_time);
+    const delayMinutes = Number(t.delay_minutes) || 0;
+
+    const segments: Array<{ start: Date; end: Date; kind: "delay" | "buffer" }> = [];
+
+    // Red delay segment: scheduled -> optimized (only if delayed)
+    if (delayMinutes > 0 && optimized.getTime() > planned.getTime()) {
+      segments.push({ start: planned, end: optimized, kind: "delay" });
+    }
+
+    // Green buffer segment: start at departure (optimized if delayed, else planned) and last 12 minutes
+    const greenStart = delayMinutes > 0 ? optimized : planned;
+    const greenEnd = new Date(greenStart.getTime() + BUFFER_MINUTES * 60 * 1000);
+    segments.push({ start: greenStart, end: greenEnd, kind: "buffer" });
+
+    return {
+      id: t.schedule_id,
+      // Use the train_id from the nested train object for the display name
+      name: t.train?.train_id || `Train ${t.train_id}`,
+      delayMinutes,
+      // Pass the full train details object to be used by the modal
+      details: t.train,
+      // Our two-phase segments (delay + buffer)
+      segments,
+    };
+  });
 }
 
 // Helper to calculate the time domain for the chart's X-axis
@@ -230,8 +246,8 @@ export default function GanttPage() {
                               width={w}
                               height={barHeight}
                               rx={8}
-                              fill={hasConflict ? "hsl(var(--warning))" : delayed ? "hsl(var(--destructive))" : "hsl(var(--chart-2))"}
-                              stroke={delayed ? "hsl(var(--destructive))" : "hsl(var(--chart-2))"}
+                              fill={hasConflict ? "hsl(var(--warning))" : (s.kind === "delay" ? "hsl(var(--destructive))" : "hsl(var(--chart-2))")}
+                              stroke={s.kind === "delay" ? "hsl(var(--destructive))" : "hsl(var(--chart-2))"}
                               strokeWidth={1}
                               opacity={0.9}
                               className="hover:opacity-100 transition-all cursor-pointer drop-shadow-sm"

@@ -13,18 +13,33 @@ import api from "../services/api"
 // --- START FIX: Process schedule data correctly ---
 function processScheduleForGantt(schedule) {
   if (!schedule) return [];
-  // The backend now returns a flat list of schedule objects
-  return schedule.map((t) => ({
-    id: t.schedule_id,
-    name: `Train ${t.train_id}`, // Use the actual train_id
-    delayMinutes: t.delay_minutes,
-    segments: [
-      {
-        start: new Date(t.planned_time),
-        end: new Date(t.optimized_time),
-      },
-    ],
-  }));
+
+  const BUFFER_MINUTES = 12; // green box duration after departure
+
+  return schedule.map((t) => {
+    const planned = new Date(t.planned_time);
+    const optimized = new Date(t.optimized_time);
+    const delayMinutes = Number(t.delay_minutes) || 0;
+
+    // If delayed, draw red delay [planned -> optimized], then green buffer [optimized -> optimized+12m]
+    // If on time, draw only green buffer [planned -> planned+12m]
+    const segments = [];
+
+    if (delayMinutes > 0) {
+      segments.push({ start: planned, end: optimized, kind: "delay" });
+    }
+
+    const greenStart = delayMinutes > 0 ? optimized : planned;
+    const greenEnd = new Date(greenStart.getTime() + BUFFER_MINUTES * 60 * 1000);
+    segments.push({ start: greenStart, end: greenEnd, kind: "buffer" });
+
+    return {
+      id: t.schedule_id,
+      name: `Train ${t.train_id}`,
+      delayMinutes,
+      segments,
+    };
+  });
 }
 // --- END FIX ---
 
@@ -126,7 +141,7 @@ export default function GanttChartView() {
                     const x1 = xScale(new Date(s.start))
                     const x2 = xScale(new Date(s.end))
                     const w = Math.max(2, x2 - x1)
-                    const delayed = (t.delayMinutes || 0) > 0
+                    const fill = s.kind === "delay" ? "#dc2626" : "#22c55e"; // red for delay, green for buffer
                     return (
                       <rect
                         key={i}
@@ -135,7 +150,7 @@ export default function GanttChartView() {
                         width={w}
                         height={yScale.bandwidth()}
                         rx={6}
-                        fill={delayed ? "#dc2626" : "#0ea5a4"}
+                        fill={fill}
                         opacity={0.9}
                       />
                     )

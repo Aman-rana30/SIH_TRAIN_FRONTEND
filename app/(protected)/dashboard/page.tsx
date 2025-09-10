@@ -148,6 +148,7 @@ export default function DashboardPage() {
         </KpiCard>
       </motion.div>
 
+
       {/* Main Content Grid */}
       <motion.div 
         className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6"
