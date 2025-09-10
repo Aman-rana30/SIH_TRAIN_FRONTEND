@@ -64,17 +64,33 @@ export default function ClientMap() {
   useEffect(() => {
     if (!wsData) return
     const payload = wsData.data || wsData
-    payload.trains?.forEach((t: any) => {
+
+    const trains = payload?.trains
+    if (!Array.isArray(trains)) return
+
+    trains.forEach((t: any) => {
+      // Robust ID derivation to avoid all items collapsing under "undefined"
+      const id = t.id ?? t.train_id ?? t.number ?? t.name ?? `${t.lat ?? t.latitude},${t.lng ?? t.longitude}`
+
+      // Support multiple possible coordinate field names
+      const lat = t.lat ?? t.latitude ?? t.position?.lat ?? t.position?.latitude
+      const lng = t.lng ?? t.longitude ?? t.position?.lng ?? t.position?.longitude
+      if (lat == null || lng == null) return
+
+      const speed = t.speed ?? t.currentSpeed ?? 0
+      const delay = t.delayMinutes ?? t.delay_minutes ?? t.delay ?? 0
+      const status = delay > 0 ? 'delayed' : speed === 0 ? 'stopped' : 'on-time'
+
       setPositions((prev) => ({
         ...prev,
-        [t.id]: {
-          lat: t.lat,
-          lng: t.lng,
-          speed: t.speed,
-          delayMinutes: t.delayMinutes || 0,
-          name: t.name,
-          status: (t.delayMinutes || 0) > 0 ? 'delayed' : t.speed === 0 ? 'stopped' : 'on-time',
-          direction: t.direction || 0,
+        [String(id)]: {
+          lat,
+          lng,
+          speed,
+          delayMinutes: delay,
+          name: t.name ?? t.train_name ?? String(id),
+          status,
+          direction: t.direction ?? 0,
         }
       }))
     })

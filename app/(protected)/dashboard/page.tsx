@@ -4,7 +4,9 @@ import { useMemo } from "react"
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import KpiCard from "@/components/KpiCard"
 import RecommendationCard from "@/components/RecommendationCard"
-import { useRecommendations, useSchedule } from "@/hooks/use-train-data"
+import { useRecommendations, useSchedule, useDepartureChecker } from "@/hooks/use-train-data"
+import { useWebSocket } from "@/hooks/use-websocket"
+import NotificationPanel from "@/components/NotificationPanel"
 import { useMutation } from "@tanstack/react-query"
 import api from "@/lib/api"
 import { motion } from "framer-motion"
@@ -22,6 +24,10 @@ import {
 export default function DashboardPage() {
   const { data: scheduleData, isLoading: scheduleLoading } = useSchedule()
   const { data: metricsData } = useRecommendations()
+  const { notifications, clearNotification, clearAllNotifications } = useWebSocket()
+  
+  // Check for departed trains periodically
+  useDepartureChecker()
 
   const kpi = useMemo(() => {
     // The schedule is the data array itself
@@ -294,6 +300,13 @@ export default function DashboardPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* Notification Panel */}
+      <NotificationPanel
+        notifications={notifications}
+        onClearNotification={clearNotification}
+        onClearAll={clearAllNotifications}
+      />
     </div>
   )
 }

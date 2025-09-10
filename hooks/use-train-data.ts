@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
+import { useEffect } from "react";
 
 export function useSchedule() {
   return useQuery({
@@ -54,5 +55,29 @@ export function useSections() {
       }>;
     },
     staleTime: 60_000,
+  });
+}
+
+// Hook to check for departed trains periodically
+export function useDepartureChecker() {
+  return useQuery({
+    queryKey: ["departed-trains"],
+    queryFn: async () => {
+      // Get sectionId from localStorage
+      const userData = typeof window !== 'undefined' 
+        ? JSON.parse(localStorage.getItem("rcd_user") || '{}')
+        : {};
+      const sectionId = userData?.sectionId;
+      
+      if (!sectionId) {
+        return { departed_trains: [], count: 0 };
+      }
+      
+      const { data } = await api.get(`/api/schedule/departed?section_id=${encodeURIComponent(sectionId)}`);
+      return data;
+    },
+    enabled: typeof window !== 'undefined' && !!localStorage.getItem("rcd_user"),
+    refetchInterval: 30000, // Check every 30 seconds
+    staleTime: 0,
   });
 }
