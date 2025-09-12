@@ -128,6 +128,66 @@ export default function DashboardPage() {
                 loading={scheduleLoading}
               />
               
+              <KpiCard 
+                title="Train Punctuality Index" 
+                value={scheduleLoading ? "..." : `${kpi.onTimeCount} on time (${kpi.onTimePct}%)`}
+                icon={<Activity className="h-4 w-4" />}
+                status={kpi.onTimePct >= 90 ? "success" : kpi.onTimePct >= 75 ? "warning" : "error"}
+                trend={kpi.onTimePct >= 85 ? "up" : "down"}
+                trendValue={kpi.onTimePct >= 85 ? "+1.2% MoM" : "Needs attention"}
+                loading={scheduleLoading}
+              >
+                <div className="h-16 mt-2" />
+              </KpiCard>
+              
+              <KpiCard 
+                title="Avg Delay" 
+                value={scheduleLoading ? "..." : `${kpi.avgDelay}m`}
+                icon={<Clock className="h-4 w-4" />}
+                status={kpi.avgDelay <= 2 ? "success" : kpi.avgDelay <= 5 ? "warning" : "error"}
+                trend={kpi.avgDelay <= 2 ? "down" : "up"}
+                trendValue={kpi.avgDelay <= 2 ? "Improving" : "Above target"}
+                loading={scheduleLoading}
+              />
+              
+              {(() => {
+                const now = new Date(timeTick)
+                const end = new Date(now)
+                end.setMinutes(0, 0, 0)
+                const start = new Date(end)
+                start.setHours(end.getHours() - 8)
+                const getTime = (t: any) => {
+                  const ts = t?.actual_time || t?.optimized_time || t?.planned_time || t?.departure_time || t?.time || t?.timestamp
+                  const d = ts ? new Date(ts) : undefined
+                  return d && !isNaN(Number(d)) ? d : undefined
+                }
+                const count = (scheduleData || []).filter((t: any) => {
+                  const d = getTime(t)
+                  return d && d > start && d <= end
+                }).length
+                const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+                const windowLabel = `${fmt(start)}–${fmt(end)}`
+                const status = count >= 10 ? "success" : count >= 5 ? "warning" : "error"
+                const trend = count >= 7 ? "up" : "down"
+                return (
+                  <KpiCard 
+                    title="Throughput" 
+                    value={scheduleLoading ? "..." : `${count} in last 8h`}
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    status={status}
+                    trend={trend}
+                    trendValue={windowLabel}
+                    loading={scheduleLoading}
+                  >
+                    <div className="h-16 mt-2" />
+                  </KpiCard>
+                )
+              })()}
+            </motion.div>
+          </CarouselItem>
+          {/* Page 2: New 3 KPI cards */}
+          <CarouselItem>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
               <KpiCard
                 title="Schedule Conflicts"
                 value={scheduleLoading ? "..." : kpi.conflicts}
@@ -145,17 +205,6 @@ export default function DashboardPage() {
                   </span>
                 }
               />
-              
-              <KpiCard 
-                title="Avg Delay" 
-                value={scheduleLoading ? "..." : `${kpi.avgDelay}m`}
-                icon={<Clock className="h-4 w-4" />}
-                status={kpi.avgDelay <= 2 ? "success" : kpi.avgDelay <= 5 ? "warning" : "error"}
-                trend={kpi.avgDelay <= 2 ? "down" : "up"}
-                trendValue={kpi.avgDelay <= 2 ? "Improving" : "Above target"}
-                loading={scheduleLoading}
-              />
-              
               <KpiCard 
                 title="On-Time Performance" 
                 value={scheduleLoading ? "..." : `${kpi.onTimePct}%`}
@@ -192,55 +241,6 @@ export default function DashboardPage() {
                   </ResponsiveContainer>
                 </div>
               </KpiCard>
-            </motion.div>
-          </CarouselItem>
-          {/* Page 2: New 3 KPI cards */}
-          <CarouselItem>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
-              <KpiCard 
-                title="Train Punctuality Index" 
-                value={scheduleLoading ? "..." : `${kpi.onTimeCount} on time (${kpi.onTimePct}%)`}
-                icon={<Activity className="h-4 w-4" />}
-                status={kpi.onTimePct >= 90 ? "success" : kpi.onTimePct >= 75 ? "warning" : "error"}
-                trend={kpi.onTimePct >= 85 ? "up" : "down"}
-                trendValue={kpi.onTimePct >= 85 ? "+1.2% MoM" : "Needs attention"}
-                loading={scheduleLoading}
-              >
-                <div className="h-16 mt-2" />
-              </KpiCard>
-              {(() => {
-                const now = new Date(timeTick)
-                const end = new Date(now)
-                end.setMinutes(0, 0, 0)
-                const start = new Date(end)
-                start.setHours(end.getHours() - 8)
-                const getTime = (t: any) => {
-                  const ts = t?.actual_time || t?.optimized_time || t?.planned_time || t?.departure_time || t?.time || t?.timestamp
-                  const d = ts ? new Date(ts) : undefined
-                  return d && !isNaN(Number(d)) ? d : undefined
-                }
-                const count = (scheduleData || []).filter((t: any) => {
-                  const d = getTime(t)
-                  return d && d > start && d <= end
-                }).length
-                const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
-                const windowLabel = `${fmt(start)}–${fmt(end)}`
-                const status = count >= 10 ? "success" : count >= 5 ? "warning" : "error"
-                const trend = count >= 7 ? "up" : "down"
-                return (
-                  <KpiCard 
-                    title="Throughput" 
-                    value={scheduleLoading ? "..." : `${count} in last 8h`}
-                    icon={<TrendingUp className="h-4 w-4" />}
-                    status={status}
-                    trend={trend}
-                    trendValue={windowLabel}
-                    loading={scheduleLoading}
-                  >
-                    <div className="h-16 mt-2" />
-                  </KpiCard>
-                )
-              })()}
               <KpiCard 
                 title="Safety Matrix" 
                 value={scheduleLoading ? "..." : `${Math.max(0, 100 - (metricsData?.current_metrics?.incidents || 0) * 5)}%`}

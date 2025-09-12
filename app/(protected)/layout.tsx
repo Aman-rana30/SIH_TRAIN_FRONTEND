@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Sidebar from "@/components/Sidebar"
 import Topbar from "@/components/Topbar"
-import { ThemeToggle } from "@/components/ThemeToggle"
+// import { ThemeToggle } from "@/components/ThemeToggle"
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
@@ -29,14 +29,9 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
         <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
-        {/* Footer */}
+        {/* Footer (theme button removed) */}
         <footer className="border-t border-border bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-4 py-2">
-            {/* Right: Theme toggle */}
-            <div className="ml-auto flex items-center gap-3">
-              <ThemeToggle />
-            </div>
-          </div>
+          <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-4 py-2" />
         </footer>
       </div>
     </div>
