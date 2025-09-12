@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import api from "@/lib/api"
 import { useSchedule } from "@/hooks/use-train-data"
 
@@ -13,7 +13,6 @@ type TrackCondition = "GOOD" | "WORN" | "MAINTENANCE"
 export default function SettingsPage() {
   // Get active trains for the section
   const { data: activeSchedule } = useSchedule()
-  const [dark, setDark] = useState(true)
   
   // Simulation type selection
   const [simulationType, setSimulationType] = useState<SimulationType>("TRAIN_DELAY")
@@ -32,11 +31,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState("")
   const [simulationResult, setSimulationResult] = useState<any>(null)
 
-  useEffect(() => {
-    const el = document.documentElement
-    if (dark) el.classList.add("dark")
-    else el.classList.remove("dark")
-  }, [dark])
+  
 
   async function runSimulation(e: React.FormEvent) {
     e.preventDefault()
@@ -93,21 +88,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
-        <h3 className="mb-2 text-lg font-semibold">Appearance</h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-medium">Dark Mode</div>
-            <div className="text-sm text-muted-foreground">Toggle dark theme</div>
-          </div>
-          <button
-            className="rounded-md border border-border bg-muted/30 px-3 py-1.5 text-sm hover:bg-muted/50"
-            onClick={() => setDark((v) => !v)}
-          >
-            {dark ? "Disable" : "Enable"}
-          </button>
-        </div>
-      </div>
+      
 
       <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
         <h3 className="mb-4 text-lg font-semibold">Digital Twin Simulation</h3>

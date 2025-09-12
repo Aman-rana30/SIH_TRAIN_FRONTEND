@@ -6,6 +6,16 @@
   .text-balance {
     text-wrap: balance;
   }
+  /* Subtle, professional background pattern that adapts to theme */
+  .bg-rail-pattern {
+    background-image:
+      radial-gradient(hsl(var(--muted-foreground) / 0.08) 1px, transparent 1px),
+      radial-gradient(hsl(var(--muted-foreground) / 0.06) 1px, transparent 1px),
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 60%, transparent 100%);
+    background-position: 0 0, 12px 12px, 0 0;
+    background-size: 24px 24px, 24px 24px, 100% 100%;
+    background-attachment: fixed;
+  }
 }
 
 @layer base {
@@ -13,8 +23,8 @@
     --font-sans: var(--font-geist-sans);
     --font-mono: var(--font-geist-mono);
     
-    /* Light theme - Modern Railway Blue palette */
-    --background: 0 0% 100%;
+    /* Light theme - Modern Railway palette */
+    --background: 210 20% 98%;
     --foreground: 222 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222 84% 4.9%;
@@ -22,16 +32,16 @@
     --popover-foreground: 222 84% 4.9%;
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
+    --secondary: 210 30% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
+    --muted: 210 25% 95%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 210 40% 96%;
     --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 214.3 25% 88%;
+    --input: 214.3 25% 88%;
     --ring: 221.2 83.2% 53.3%;
     
     /* Railway-specific colors */
@@ -67,24 +77,24 @@
   }
   .dark {
     /* Dark theme - Enhanced for railway operations */
-    --background: 222 84% 4.9%;
+    --background: 222 50% 7%;
     --foreground: 210 40% 98%;
-    --card: 222 84% 5.9%;
+    --card: 222 42% 9%;
     --card-foreground: 210 40% 98%;
     --popover: 222 84% 4.9%;
     --popover-foreground: 210 40% 98%;
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217.2 25% 16%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 217.2 24% 16.5%;
+    --muted-foreground: 215 18% 70%;
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 217.2 22% 18%;
+    --input: 217.2 22% 18%;
     --ring: 217.2 91.2% 59.8%;
     
     /* Railway-specific colors - dark theme */

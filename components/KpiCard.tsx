@@ -60,7 +60,8 @@ export default function KpiCard({
       aria-label={`${title} KPI card`}
       tabIndex={0}
       className={cn(
-        "group relative overflow-hidden rounded-2xl border bg-card shadow-card transition-all duration-200 p-6",
+        "group relative overflow-hidden rounded-2xl border bg-card/95 shadow-card transition-all duration-200 p-6",
+        "backdrop-blur supports-[backdrop-filter]:bg-card/80",
         "hover:shadow-card-hover hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
         statusStyles[status]
       )}
@@ -69,7 +70,7 @@ export default function KpiCard({
       transition={{ duration: 0.3 }}
     >
       {/* Background gradient effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background/50 to-transparent opacity-50" />
+      <div className="absolute inset-0 bg-gradient-to-br from-background/30 via-transparent to-transparent opacity-60" />
       
       {/* Header */}
       <div className="relative mb-4 flex items-start justify-between">
@@ -99,7 +100,7 @@ export default function KpiCard({
       </div>
 
       {/* Main Value */}
-      <div className="mb-3">
+      <div className="mb-3 min-h-10">
         {loading ? (
           <div className="h-8 w-20 animate-pulse rounded bg-muted" aria-label="Loading value..." />
         ) : (

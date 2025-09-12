@@ -41,7 +41,7 @@ export default function Sidebar() {
       
       <motion.aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full bg-card border-r border-border shadow-lg transition-all duration-300",
+          "fixed left-0 top-0 z-50 h-full bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70 border-r border-border/60 shadow-lg transition-all duration-300",
           "lg:relative lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
@@ -75,7 +75,7 @@ export default function Sidebar() {
         </motion.button>
 
         {/* Header */}
-        <div className="flex h-16 items-center border-b border-border px-4">
+        <div className="flex h-16 items-center border-b border-border/60 px-4">
           <motion.div 
             className="flex items-center gap-3 w-full"
             animate={{ opacity: isOpen ? 1 : 0 }}
@@ -100,10 +100,10 @@ export default function Sidebar() {
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  "hover:bg-accent hover:text-accent-foreground touch-manipulation",
+                  "hover:bg-primary/10 hover:text-foreground touch-manipulation",
                   "min-h-[44px] lg:min-h-[40px]", // Larger touch targets on mobile
                   pathname === item.href
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/30"
                     : "text-muted-foreground hover:text-foreground"
                 )}
                 onClick={() => {
@@ -113,7 +113,7 @@ export default function Sidebar() {
                   }
                 }}
               >
-                <item.icon className="h-4 w-4 flex-shrink-0" />
+                <item.icon className="h-4 w-4 flex-shrink-0 text-primary" />
                 <AnimatePresence>
                   {isOpen && (
                     <motion.span
@@ -131,7 +131,7 @@ export default function Sidebar() {
                 {/* Active indicator */}
                 {pathname === item.href && (
                   <motion.div
-                    className="ml-auto h-1.5 w-1.5 rounded-full bg-primary-foreground"
+                    className="ml-auto h-1.5 w-1.5 rounded-full bg-primary"
                     layoutId="activeIndicator"
                     transition={{ duration: 0.2 }}
                   />
@@ -142,7 +142,7 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border p-3 lg:p-4">
+        <div className="border-t border-border/60 p-3 lg:p-4">
           <motion.div
             className="flex items-center gap-3"
             animate={{ opacity: isOpen ? 1 : 0 }}

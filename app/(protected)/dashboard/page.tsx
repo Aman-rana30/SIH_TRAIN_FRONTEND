@@ -10,6 +10,13 @@ import NotificationPanel from "@/components/NotificationPanel"
 import { useMutation } from "@tanstack/react-query"
 import api from "@/lib/api"
 import { motion } from "framer-motion"
+import { useEffect, useState } from "react"
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel"
 import { 
   Train, 
   Clock, 
@@ -25,6 +32,10 @@ export default function DashboardPage() {
   const { data: scheduleData, isLoading: scheduleLoading } = useSchedule()
   const { data: metricsData } = useRecommendations()
   const { notifications, clearNotification, clearAllNotifications } = useWebSocket()
+  const [showNotifications, setShowNotifications] = useState<boolean>(false)
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null)
+  const [selectedSlide, setSelectedSlide] = useState<number>(0)
+  const [timeTick, setTimeTick] = useState<number>(Date.now())
   
   // Check for departed trains periodically
   useDepartureChecker()
@@ -38,10 +49,9 @@ export default function DashboardPage() {
       // The schedule is now a list of schedule objects
       (scheduleData?.reduce((acc: number, t: any) => acc + (t.delay_minutes || 0), 0) || 0) / (total || 1),
     )
-    const onTimePct = total
-      ? Math.round((scheduleData.filter((t: any) => (t.delay_minutes || 0) <= 0).length / total) * 100)
-      : 0
-    return { total, conflicts, avgDelay, onTimePct }
+    const onTimeCount = scheduleData?.filter((t: any) => (t.delay_minutes || 0) <= 0).length || 0
+    const onTimePct = total ? Math.round((onTimeCount / total) * 100) : 0
+    return { total, conflicts, avgDelay, onTimePct, onTimeCount }
   }, [scheduleData, metricsData])
 
   const spark = useMemo(() => {
@@ -63,90 +73,202 @@ export default function DashboardPage() {
     console.log("Applying recommendation:", rec)
   }
 
+  // Sync notification panel toggle via localStorage
+  useEffect(() => {
+    const read = () => setShowNotifications(Boolean(localStorage.getItem("rcd_show_notifications")))
+    read()
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "rcd_show_notifications") read()
+    }
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
+  }, [])
+
+  // Track carousel selected index for custom dots
+  useEffect(() => {
+    if (!carouselApi) return
+    const onSelect = () => setSelectedSlide(carouselApi.selectedScrollSnap())
+    onSelect()
+    carouselApi.on("select", onSelect)
+    return () => {
+      carouselApi.off("select", onSelect)
+    }
+  }, [carouselApi])
+
+  // Roll the 8-hour throughput window forward automatically
+  useEffect(() => {
+    const id = setInterval(() => setTimeTick(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
   return (
     <div className="mx-auto max-w-[1400px] space-y-4 p-4 sm:space-y-6 sm:p-6">
-      {/* KPI Cards Grid */}
-      <motion.div 
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, staggerChildren: 0.1 }}
+      {/* KPI Carousel with two pages and dot pagination */}
+      <Carousel
+        opts={{ align: "start" }}
+        setApi={setCarouselApi}
+        className="w-full"
       >
-        <KpiCard 
-          title="Active Trains" 
-          value={scheduleLoading ? "..." : kpi.total}
-          icon={<Train className="h-4 w-4" />}
-          status={kpi.total > 0 ? "success" : "neutral"}
-          trend={kpi.total > 5 ? "up" : "neutral"}
-          trendValue={kpi.total > 5 ? "+12% vs last week" : undefined}
-          loading={scheduleLoading}
-        />
-        
-        <KpiCard
-          title="Schedule Conflicts"
-          value={scheduleLoading ? "..." : kpi.conflicts}
-          icon={<AlertTriangle className="h-4 w-4" />}
-          status={kpi.conflicts === 0 ? "success" : kpi.conflicts < 3 ? "warning" : "error"}
-          trend={kpi.conflicts === 0 ? "down" : "up"}
-          trendValue={kpi.conflicts === 0 ? "No conflicts" : `${kpi.conflicts} active`}
-          loading={scheduleLoading}
-          badge={
-            <span className={`inline-flex items-center rounded-full px-2 py-1 text-2xs font-medium ${
-              kpi.conflicts === 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-            }`}>
-              {kpi.conflicts === 0 ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
-              {kpi.conflicts === 0 ? "All Clear" : "Alert"}
-            </span>
-          }
-        />
-        
-        <KpiCard 
-          title="Avg Delay" 
-          value={scheduleLoading ? "..." : `${kpi.avgDelay}m`}
-          icon={<Clock className="h-4 w-4" />}
-          status={kpi.avgDelay <= 2 ? "success" : kpi.avgDelay <= 5 ? "warning" : "error"}
-          trend={kpi.avgDelay <= 2 ? "down" : "up"}
-          trendValue={kpi.avgDelay <= 2 ? "Improving" : "Above target"}
-          loading={scheduleLoading}
-        />
-        
-        <KpiCard 
-          title="On-Time Performance" 
-          value={scheduleLoading ? "..." : `${kpi.onTimePct}%`}
-          icon={<Activity className="h-4 w-4" />}
-          status={kpi.onTimePct >= 90 ? "success" : kpi.onTimePct >= 75 ? "warning" : "error"}
-          trend={kpi.onTimePct >= 85 ? "up" : "down"}
-          trendValue={kpi.onTimePct >= 85 ? "+2.3% this week" : "Below target"}
-          loading={scheduleLoading}
-        >
-          <div className="h-16 mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={spark}>
-                <XAxis dataKey="x" hide />
-                <YAxis hide domain={["auto", "auto"]} />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    color: "hsl(var(--foreground))",
-                    fontSize: "12px",
-                  }}
-                  labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="y" 
-                  stroke={kpi.onTimePct >= 85 ? "hsl(var(--success))" : "hsl(var(--warning))"} 
-                  strokeWidth={2.5} 
-                  dot={false}
-                  strokeDasharray={kpi.onTimePct < 75 ? "5,5" : "0"}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </KpiCard>
-      </motion.div>
+        <CarouselContent>
+          {/* Page 1: Original 4 KPI cards */}
+          <CarouselItem>
+            <motion.div 
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, staggerChildren: 0.1 }}
+            >
+              <KpiCard 
+                title="Active Trains" 
+                value={scheduleLoading ? "..." : kpi.total}
+                icon={<Train className="h-4 w-4" />}
+                status={kpi.total > 0 ? "success" : "neutral"}
+                trend={kpi.total > 5 ? "up" : "neutral"}
+                trendValue={kpi.total > 5 ? "+12% vs last week" : undefined}
+                loading={scheduleLoading}
+              />
+              
+              <KpiCard
+                title="Schedule Conflicts"
+                value={scheduleLoading ? "..." : kpi.conflicts}
+                icon={<AlertTriangle className="h-4 w-4" />}
+                status={kpi.conflicts === 0 ? "success" : kpi.conflicts < 3 ? "warning" : "error"}
+                trend={kpi.conflicts === 0 ? "down" : "up"}
+                trendValue={kpi.conflicts === 0 ? "No conflicts" : `${kpi.conflicts} active`}
+                loading={scheduleLoading}
+                badge={
+                  <span className={`inline-flex items-center rounded-full px-2 py-1 text-2xs font-medium ${
+                    kpi.conflicts === 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                  }`}>
+                    {kpi.conflicts === 0 ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
+                    {kpi.conflicts === 0 ? "All Clear" : "Alert"}
+                  </span>
+                }
+              />
+              
+              <KpiCard 
+                title="Avg Delay" 
+                value={scheduleLoading ? "..." : `${kpi.avgDelay}m`}
+                icon={<Clock className="h-4 w-4" />}
+                status={kpi.avgDelay <= 2 ? "success" : kpi.avgDelay <= 5 ? "warning" : "error"}
+                trend={kpi.avgDelay <= 2 ? "down" : "up"}
+                trendValue={kpi.avgDelay <= 2 ? "Improving" : "Above target"}
+                loading={scheduleLoading}
+              />
+              
+              <KpiCard 
+                title="On-Time Performance" 
+                value={scheduleLoading ? "..." : `${kpi.onTimePct}%`}
+                icon={<Activity className="h-4 w-4" />}
+                status={kpi.onTimePct >= 90 ? "success" : kpi.onTimePct >= 75 ? "warning" : "error"}
+                trend={kpi.onTimePct >= 85 ? "up" : "down"}
+                trendValue={kpi.onTimePct >= 85 ? "+2.3% this week" : "Below target"}
+                loading={scheduleLoading}
+              >
+                <div className="h-16 mt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={spark}>
+                      <XAxis dataKey="x" hide />
+                      <YAxis hide domain={["auto", "auto"]} />
+                      <Tooltip
+                        contentStyle={{
+                          background: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          color: "hsl(var(--foreground))",
+                          fontSize: "12px",
+                        }}
+                        labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="y" 
+                        stroke={kpi.onTimePct >= 85 ? "hsl(var(--success))" : "hsl(var(--warning))"} 
+                        strokeWidth={2.5} 
+                        dot={false}
+                        strokeDasharray={kpi.onTimePct < 75 ? "5,5" : "0"}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </KpiCard>
+            </motion.div>
+          </CarouselItem>
+          {/* Page 2: New 3 KPI cards */}
+          <CarouselItem>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
+              <KpiCard 
+                title="Train Punctuality Index" 
+                value={scheduleLoading ? "..." : `${kpi.onTimeCount} on time (${kpi.onTimePct}%)`}
+                icon={<Activity className="h-4 w-4" />}
+                status={kpi.onTimePct >= 90 ? "success" : kpi.onTimePct >= 75 ? "warning" : "error"}
+                trend={kpi.onTimePct >= 85 ? "up" : "down"}
+                trendValue={kpi.onTimePct >= 85 ? "+1.2% MoM" : "Needs attention"}
+                loading={scheduleLoading}
+              >
+                <div className="h-16 mt-2" />
+              </KpiCard>
+              {(() => {
+                const now = new Date(timeTick)
+                const end = new Date(now)
+                end.setMinutes(0, 0, 0)
+                const start = new Date(end)
+                start.setHours(end.getHours() - 8)
+                const getTime = (t: any) => {
+                  const ts = t?.actual_time || t?.optimized_time || t?.planned_time || t?.departure_time || t?.time || t?.timestamp
+                  const d = ts ? new Date(ts) : undefined
+                  return d && !isNaN(Number(d)) ? d : undefined
+                }
+                const count = (scheduleData || []).filter((t: any) => {
+                  const d = getTime(t)
+                  return d && d > start && d <= end
+                }).length
+                const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+                const windowLabel = `${fmt(start)}–${fmt(end)}`
+                const status = count >= 10 ? "success" : count >= 5 ? "warning" : "error"
+                const trend = count >= 7 ? "up" : "down"
+                return (
+                  <KpiCard 
+                    title="Throughput" 
+                    value={scheduleLoading ? "..." : `${count} in last 8h`}
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    status={status}
+                    trend={trend}
+                    trendValue={windowLabel}
+                    loading={scheduleLoading}
+                  >
+                    <div className="h-16 mt-2" />
+                  </KpiCard>
+                )
+              })()}
+              <KpiCard 
+                title="Safety Matrix" 
+                value={scheduleLoading ? "..." : `${Math.max(0, 100 - (metricsData?.current_metrics?.incidents || 0) * 5)}%`}
+                icon={<CheckCircle2 className="h-4 w-4" />}
+                status={(metricsData?.current_metrics?.incidents || 0) === 0 ? "success" : (metricsData?.current_metrics?.incidents || 0) < 3 ? "warning" : "error"}
+                trend={(metricsData?.current_metrics?.incidents || 0) === 0 ? "up" : "down"}
+                trendValue={(metricsData?.current_metrics?.incidents || 0) === 0 ? "No incidents" : `${metricsData?.current_metrics?.incidents || 0} incidents`}
+                loading={scheduleLoading}
+              >
+                <div className="h-16 mt-2" />
+              </KpiCard>
+              {/* Spacer to keep layout 4-wide like first page */}
+              <div className="hidden lg:block" />
+            </div>
+          </CarouselItem>
+        </CarouselContent>
+        {/* Two-dot pagination */}
+        <div className="mt-3 flex items-center justify-center gap-3">
+          {[0,1].map((i) => (
+            <button
+              key={i}
+              aria-label={`Go to page ${i+1}`}
+              className={`transition-all rounded-full ${selectedSlide === i ? "bg-foreground h-3 w-6" : "bg-muted-foreground/40 h-2.5 w-2.5"}`}
+              onClick={() => carouselApi?.scrollTo(i)}
+            />
+          ))}
+        </div>
+      </Carousel>
 
 
       {/* Main Content Grid */}
@@ -302,12 +424,15 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
+
       {/* Notification Panel */}
-      <NotificationPanel
-        notifications={notifications}
-        onClearNotification={clearNotification}
-        onClearAll={clearAllNotifications}
-      />
+      {showNotifications && (
+        <NotificationPanel
+          notifications={notifications}
+          onClearNotification={clearNotification}
+          onClearAll={clearAllNotifications}
+        />
+      )}
     </div>
   )
 }

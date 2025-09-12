@@ -6,20 +6,22 @@ import { useEffect } from "react";
 
 export function useSchedule() {
   return useQuery({
-    queryKey: ["schedule"],
+    queryKey: ["schedule", typeof window !== 'undefined' ? localStorage.getItem("rcd_selected_date") : undefined],
     queryFn: async () => {
       // Get sectionId from localStorage
       const userData = typeof window !== 'undefined' 
         ? JSON.parse(localStorage.getItem("rcd_user") || '{}')
         : {};
       const sectionId = userData?.sectionId;
+      const selectedDate = typeof window !== 'undefined' ? localStorage.getItem("rcd_selected_date") : undefined
       
       if (!sectionId) {
         console.warn('No sectionId found in localStorage');
         return [];
       }
       
-      const { data } = await api.get(`/api/schedule/current/refresh?section_id=${encodeURIComponent(sectionId)}`);
+      const dateParam = selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : ''
+      const { data } = await api.get(`/api/schedule/current/refresh?section_id=${encodeURIComponent(sectionId)}${dateParam}`);
       return data;
     },
     enabled: typeof window !== 'undefined' && !!localStorage.getItem("rcd_user"),
@@ -30,10 +32,12 @@ export function useSchedule() {
 
 export function useRecommendations() {
   return useQuery({
-    queryKey: ["recommendations"],
+    queryKey: ["recommendations", typeof window !== 'undefined' ? localStorage.getItem("rcd_selected_date") : undefined],
     queryFn: async () => {
       // Add a trailing slash to the path here
-      const { data } = await api.get("/api/metrics/");
+      const selectedDate = typeof window !== 'undefined' ? localStorage.getItem("rcd_selected_date") : undefined
+      const dateParam = selectedDate ? `?date=${encodeURIComponent(selectedDate)}` : ''
+      const { data } = await api.get(`/api/metrics/${dateParam}`);
       return data;
     },
     staleTime: 30_000,
