@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import KpiCard from "@/components/KpiCard"
 import RecommendationCard from "@/components/RecommendationCard"
-import { useRecommendations, useSchedule, useDepartureChecker } from "@/hooks/use-train-data"
+import { useRecommendations, useSchedule, useDepartureChecker, useTodayThroughput } from "@/hooks/use-train-data"
 import { useWebSocket } from "@/hooks/use-websocket"
 import NotificationPanel from "@/components/NotificationPanel"
 import { useMutation } from "@tanstack/react-query"
@@ -31,6 +31,7 @@ import {
 export default function DashboardPage() {
   const { data: scheduleData, isLoading: scheduleLoading } = useSchedule()
   const { data: metricsData } = useRecommendations()
+  const { data: throughputData, isLoading: throughputLoading } = useTodayThroughput()
   const { notifications, clearNotification, clearAllNotifications } = useWebSocket()
   const [showNotifications, setShowNotifications] = useState<boolean>(false)
   const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null)
@@ -150,39 +151,17 @@ export default function DashboardPage() {
                 loading={scheduleLoading}
               />
               
-              {(() => {
-                const now = new Date(timeTick)
-                const end = new Date(now)
-                end.setMinutes(0, 0, 0)
-                const start = new Date(end)
-                start.setHours(end.getHours() - 8)
-                const getTime = (t: any) => {
-                  const ts = t?.actual_time || t?.optimized_time || t?.planned_time || t?.departure_time || t?.time || t?.timestamp
-                  const d = ts ? new Date(ts) : undefined
-                  return d && !isNaN(Number(d)) ? d : undefined
-                }
-                const count = (scheduleData || []).filter((t: any) => {
-                  const d = getTime(t)
-                  return d && d > start && d <= end
-                }).length
-                const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
-                const windowLabel = `${fmt(start)}–${fmt(end)}`
-                const status = count >= 10 ? "success" : count >= 5 ? "warning" : "error"
-                const trend = count >= 7 ? "up" : "down"
-                return (
-                  <KpiCard 
-                    title="Throughput" 
-                    value={scheduleLoading ? "..." : `${count} in last 8h`}
-                    icon={<TrendingUp className="h-4 w-4" />}
-                    status={status}
-                    trend={trend}
-                    trendValue={windowLabel}
-                    loading={scheduleLoading}
-                  >
-                    <div className="h-16 mt-2" />
-                  </KpiCard>
-                )
-              })()}
+              <KpiCard 
+                title="Throughput" 
+                value={throughputLoading ? "..." : `${throughputData?.throughput_count || 0} in last ${Math.floor(throughputData?.hours_elapsed || 0)}h`}
+                icon={<TrendingUp className="h-4 w-4" />}
+                status={(throughputData?.throughput_count || 0) >= 10 ? "success" : (throughputData?.throughput_count || 0) >= 5 ? "warning" : "error"}
+                trend={(throughputData?.throughput_count || 0) >= 7 ? "up" : "down"}
+                trendValue={throughputData?.time_range_display || "00:00–00:00"}
+                loading={throughputLoading}
+              >
+                <div className="h-16 mt-2" />
+              </KpiCard>
             </motion.div>
           </CarouselItem>
           {/* Page 2: New 3 KPI cards */}

@@ -85,3 +85,27 @@ export function useDepartureChecker() {
     staleTime: 0,
   });
 }
+
+// Hook to get today's throughput from 00:00 to current time
+export function useTodayThroughput() {
+  return useQuery({
+    queryKey: ["today-throughput"],
+    queryFn: async () => {
+      // Get sectionId from localStorage
+      const userData = typeof window !== 'undefined' 
+        ? JSON.parse(localStorage.getItem("rcd_user") || '{}')
+        : {};
+      const sectionId = userData?.sectionId;
+      
+      if (!sectionId) {
+        return { throughput_count: 0, hours_elapsed: 0, time_range_display: "00:00–00:00" };
+      }
+      
+      const { data } = await api.get(`/api/schedule/throughput/today?section_id=${encodeURIComponent(sectionId)}`);
+      return data;
+    },
+    enabled: typeof window !== 'undefined' && !!localStorage.getItem("rcd_user"),
+    refetchInterval: 60000, // Refresh every minute
+    staleTime: 0,
+  });
+}
