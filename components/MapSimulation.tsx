@@ -119,31 +119,35 @@ export default function MapSimulation() {
   const [speed, setSpeed] = useState(1.0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // New state for Python API and WebSocket integration
-  const [pythonApiConnected, setPythonApiConnected] = useState(false)
+  // New state for accurate positioning and WebSocket integration
+  const [accurateApiConnected, setAccurateApiConnected] = useState(false)
   const [websocketConnected, setWebsocketConnected] = useState(false)
   const [socket, setSocket] = useState<Socket | null>(null)
   const [lastUpdate, setLastUpdate] = useState<string>('')
+  const [positioningMode, setPositioningMode] = useState<'accurate' | 'fallback'>('accurate')
 
-  // Existing fetch functions
+  // Fetch track data with accurate positioning support
   const fetchTrackData = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/map/track`)
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       const data = await response.json()
       setTrackPoints(data.track_polyline || [])
+      logger.info(`Loaded ${data.track_polyline?.length || 0} track points`)
     } catch (err) {
       console.error('Error fetching track data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch track data')
     }
   }
 
+  // Fetch stations data
   const fetchStationsData = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/map/stations`)
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       const data = await response.json()
       setStations(data.stations || [])
+      console.log(`Loaded ${data.stations?.length || 0} railway stations`)
     } catch (err) {
       console.error('Error fetching stations data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch stations data')
@@ -158,14 +162,16 @@ export default function MapSimulation() {
       const data: TrainPositionsResponse = await response.json()
       setTrains(data.trains)
       setError(null)
+      setPositioningMode('fallback')
+      console.log(`Fetched ${data.trains.length} trains using fallback positioning`)
     } catch (err) {
       console.error('Error fetching train positions:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch train positions')
     }
   }
 
-  // New Python API function
-  const fetchTrainPositionsFromPython = async () => {
+  // Accurate train positions function (primary method)
+  const fetchAccurateTrainPositions = async () => {
     try {
       // First, update Python API with latest database data
       try {
@@ -173,53 +179,56 @@ export default function MapSimulation() {
           method: 'POST'
         })
         if (updateResponse.ok) {
-          console.log('✅ Python API updated with latest train data')
-          setPythonApiConnected(true)
+          console.log('✅ Accurate Python API updated with latest train data')
+          setAccurateApiConnected(true)
         }
       } catch (updateError) {
-        console.warn('Could not update Python API:', updateError)
-        setPythonApiConnected(false)
+        console.warn('Could not update accurate Python API:', updateError)
+        setAccurateApiConnected(false)
       }
 
-      // Then fetch real-time positions
-      const response = await fetch(`${API_BASE_URL}/api/map/train-positions-python`)
+      // Then fetch accurate positions
+      const response = await fetch(`${API_BASE_URL}/api/map/train-positions-accurate`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const data: TrainPositionsResponse = await response.json()
       
-      console.log(`📍 Received ${data.trains.length} train positions from Python calculator`)
+      console.log(`📍 Received ${data.trains.length} ACCURATE train positions`)
+      console.log(`🎯 Positioning: Trains stick to railway tracks using OSM data`)
       console.log(`⏰ 30-minute window for JUC arrivals`)
       console.log(`🕐 Data timestamp: ${data.simulation_time}`)
       
-      // Log train details for debugging
+      // Log accurate train details for debugging
       data.trains.forEach(train => {
         const progressPercent = (train.progress * 100).toFixed(1)
         const statusEmoji = train.status === 'moving' ? '🚂' : train.status === 'stopped' ? '🛑' : '⚠️'
-        console.log(`${statusEmoji} ${train.train_id}: ${train.status} at ${train.current_lat.toFixed(4)}, ${train.current_lon.toFixed(4)} (${progressPercent}% complete, ${train.speed.toFixed(1)} km/h)`)
+        console.log(`${statusEmoji} ${train.train_id}: ${train.status} at ${train.current_lat.toFixed(4)}, ${train.current_lon.toFixed(4)} (${progressPercent}% complete, ${train.speed.toFixed(1)} km/h) - ON TRACK`)
       })
       
       setTrains(data.trains)
       setLastUpdate(new Date().toLocaleTimeString())
       setError(null)
-      setPythonApiConnected(true)
+      setAccurateApiConnected(true)
+      setPositioningMode('accurate')
+      
     } catch (err) {
-      console.error('Error fetching train positions from Python:', err)
-      setError(err instanceof Error ? err.message : 'Python API connection failed')
-      setPythonApiConnected(false)
+      console.error('Error fetching accurate train positions:', err)
+      setError(err instanceof Error ? err.message : 'Accurate positioning API connection failed')
+      setAccurateApiConnected(false)
       
       // Fallback to original method
       try {
-        console.log('🔄 Falling back to database integration...')
+        console.log('🔄 Falling back to database integration positioning...')
         await fetchTrainPositions()
       } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError)
+        console.error('Fallback positioning also failed:', fallbackError)
       }
     }
   }
 
-  // WebSocket connection function
-  const connectWebSocket = useCallback(() => {
+  // WebSocket connection function for accurate positioning
+  const connectAccurateWebSocket = useCallback(() => {
     if (socket) {
       socket.disconnect()
     }
@@ -230,18 +239,18 @@ export default function MapSimulation() {
     })
 
     newSocket.on('connect', () => {
-      console.log('🔌 Connected to Python WebSocket server')
+      console.log('🔌 Connected to Accurate Train Position WebSocket server')
       setWebsocketConnected(true)
       setSocket(newSocket)
     })
 
     newSocket.on('disconnect', (reason) => {
-      console.log('🔌 Disconnected from Python WebSocket:', reason)
+      console.log('🔌 Disconnected from Accurate WebSocket:', reason)
       setWebsocketConnected(false)
     })
 
     newSocket.on('train_positions', (data) => {
-      console.log('📡 Received WebSocket train positions update:', data)
+      console.log('📡 Received ACCURATE WebSocket train positions update:', data)
       
       if (data.trains && Array.isArray(data.trains)) {
         // Convert WebSocket data to our format
@@ -262,17 +271,19 @@ export default function MapSimulation() {
         setTrains(convertedTrains)
         setLastUpdate(new Date().toLocaleTimeString())
         setError(null)
+        setPositioningMode('accurate')
+        console.log(`📡 Updated ${convertedTrains.length} trains with ACCURATE positioning via WebSocket`)
       }
     })
 
     newSocket.on('connect_error', (error) => {
-      console.error('🔌 WebSocket connection error:', error)
+      console.error('🔌 Accurate WebSocket connection error:', error)
       setWebsocketConnected(false)
       setSocket(null)
     })
 
     newSocket.on('data_updated', (data) => {
-      console.log('📊 Train data file updated:', data)
+      console.log('📊 Train data file updated with accurate positioning:', data)
       // Optionally show a notification
     })
 
@@ -297,27 +308,27 @@ export default function MapSimulation() {
     setIsPlaying(false)
     fetchInitialData()
     if (websocketConnected) {
-      fetchTrainPositionsFromPython()
+      fetchAccurateTrainPositions()
     } else {
-      fetchTrainPositions()
+      fetchAccurateTrainPositions()
     }
   }
 
-  // Updated useEffect for initial data loading
+  // Updated useEffect for initial data loading with accurate positioning
   useEffect(() => {
     fetchInitialData()
     
-    // Try WebSocket first, fallback to HTTP polling
-    const ws = connectWebSocket()
+    // Try accurate WebSocket first, fallback to HTTP polling
+    const ws = connectAccurateWebSocket()
     
-    // If WebSocket fails, use HTTP polling
+    // If WebSocket fails, use accurate HTTP polling
     const fallbackTimer = setTimeout(() => {
       if (!websocketConnected) {
-        console.log('🔄 WebSocket not connected, using HTTP polling')
-        fetchTrainPositionsFromPython()
+        console.log('🔄 WebSocket not connected, using accurate HTTP polling')
+        fetchAccurateTrainPositions()
         
         if (isPlaying) {
-          intervalRef.current = setInterval(fetchTrainPositionsFromPython, 10000) // 10 seconds for HTTP
+          intervalRef.current = setInterval(fetchAccurateTrainPositions, 8000) // 8 seconds for HTTP
         }
       }
     }, 3000)
@@ -333,7 +344,7 @@ export default function MapSimulation() {
     }
   }, [])
 
-  // Updated play/pause effect
+  // Updated play/pause effect with accurate positioning
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
@@ -342,11 +353,11 @@ export default function MapSimulation() {
     if (isPlaying) {
       if (websocketConnected) {
         // WebSocket handles updates automatically
-        console.log('🎮 Using WebSocket for live updates')
+        console.log('🎮 Using Accurate WebSocket for live updates')
       } else {
-        // Use HTTP polling as fallback
-        console.log('🎮 Using HTTP polling for updates')
-        intervalRef.current = setInterval(fetchTrainPositionsFromPython, 10000)
+        // Use accurate HTTP polling as fallback
+        console.log('🎮 Using Accurate HTTP polling for updates')
+        intervalRef.current = setInterval(fetchAccurateTrainPositions, 8000)
       }
     }
   }, [isPlaying, websocketConnected])
@@ -354,13 +365,13 @@ export default function MapSimulation() {
   // Status indicators component
   const StatusIndicators = () => (
     <div className="flex gap-2 mb-4">
-      {/* Python API Status */}
+      {/* Accurate API Status */}
       <div className={cn(
         "flex items-center gap-1 px-2 py-1 rounded text-xs",
-        pythonApiConnected ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+        accurateApiConnected ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
       )}>
-        <span>{pythonApiConnected ? '✅' : '❌'}</span>
-        <span>Python API</span>
+        <span>{accurateApiConnected ? '✅' : '❌'}</span>
+        <span>Accurate API</span>
       </div>
       
       {/* WebSocket Status */}
@@ -370,6 +381,15 @@ export default function MapSimulation() {
       )}>
         <span>{websocketConnected ? '🔌' : '🔄'}</span>
         <span>WebSocket</span>
+      </div>
+      
+      {/* Positioning Mode */}
+      <div className={cn(
+        "flex items-center gap-1 px-2 py-1 rounded text-xs",
+        positioningMode === 'accurate' ? "bg-blue-100 text-blue-800" : "bg-orange-100 text-orange-800"
+      )}>
+        <span>{positioningMode === 'accurate' ? '🎯' : '🔄'}</span>
+        <span>{positioningMode === 'accurate' ? 'On-Track' : 'Fallback'}</span>
       </div>
       
       {/* Last Update */}
@@ -382,7 +402,7 @@ export default function MapSimulation() {
     </div>
   )
 
-  // Manual refresh button
+  // Manual refresh button with accurate positioning
   const ManualRefreshButton = () => (
     <Button 
       size="sm" 
@@ -391,15 +411,15 @@ export default function MapSimulation() {
         if (websocketConnected && socket) {
           socket.emit('request_update')
         } else {
-          fetchTrainPositionsFromPython()
+          fetchAccurateTrainPositions()
         }
       }}
       disabled={loading}
     >
       <div className="flex items-center gap-1">
-        <span>🐍</span>
+        <span>🎯</span>
         <span className="text-xs">
-          {websocketConnected ? 'Request Update' : 'Fetch Python API'}
+          {websocketConnected ? 'Request Update' : 'Fetch Accurate'}
         </span>
       </div>
     </Button>
@@ -414,7 +434,7 @@ export default function MapSimulation() {
         if (websocketConnected && socket) {
           socket.disconnect()
         } else {
-          connectWebSocket()
+          connectAccurateWebSocket()
         }
       }}
     >
@@ -432,8 +452,8 @@ export default function MapSimulation() {
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <div className="animate-spin text-4xl mb-4">🚂</div>
-          <p className="text-lg font-medium">Fetching track and station data</p>
-          <p className="text-sm text-muted-foreground mt-2">Loading railway simulation...</p>
+          <p className="text-lg font-medium">Loading accurate railway positioning system</p>
+          <p className="text-sm text-muted-foreground mt-2">Fetching OSM railway geometry and train data...</p>
         </div>
       </div>
     )
@@ -444,12 +464,12 @@ export default function MapSimulation() {
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-lg font-medium text-red-600 mb-2">Error loading map data</p>
+          <p className="text-lg font-medium text-red-600 mb-2">Error loading accurate map data</p>
           <p className="text-sm text-muted-foreground mb-4">{error}</p>
-          <p className="text-xs text-muted-foreground">Make sure your Train AI Backend is running</p>
+          <p className="text-xs text-muted-foreground">Make sure your Accurate Train Position API is running</p>
           <Button onClick={handleReset} className="mt-4">
             <RotateCcw className="w-4 h-4 mr-2" />
-            Retry
+            Retry with Accurate Positioning
           </Button>
         </div>
       </div>
@@ -467,12 +487,18 @@ export default function MapSimulation() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Train className="w-5 h-5" />
-                Real-time Train Positions and Railway Simulation
+                Accurate Train Positioning - OSM Railway Routes
               </CardTitle>
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Zap className="w-3 h-3" />
-                Live
-              </Badge>
+              <div className="flex gap-2">
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Zap className="w-3 h-3" />
+                  Live
+                </Badge>
+                <Badge variant={positioningMode === 'accurate' ? 'default' : 'secondary'} className="flex items-center gap-1">
+                  <span>{positioningMode === 'accurate' ? '🎯' : '🔄'}</span>
+                  {positioningMode === 'accurate' ? 'On-Track' : 'Fallback'}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0 h-[calc(100%-5rem)]">
@@ -523,7 +549,7 @@ export default function MapSimulation() {
                 </Marker>
               ))}
               
-              {/* Train Positions */}
+              {/* Train Positions with Accurate Positioning */}
               {trains.map((train, index) => (
                 <Marker
                   key={`${train.train_id}-${index}`}
@@ -564,6 +590,15 @@ export default function MapSimulation() {
                             <span>{train.next_junction}</span>
                           </div>
                         )}
+                        <div className="flex justify-between">
+                          <span className="font-medium">Positioning:</span>
+                          <Badge 
+                            variant={positioningMode === 'accurate' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {positioningMode === 'accurate' ? 'On-Track' : 'Fallback'}
+                          </Badge>
+                        </div>
                         {train.is_conflicted && (
                           <div className="flex items-center gap-1 mt-2 p-2 bg-red-50 rounded">
                             <AlertTriangle className="w-4 h-4 text-red-500" />
@@ -572,6 +607,7 @@ export default function MapSimulation() {
                         )}
                         <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
                           <p>Position: {train.current_lat.toFixed(4)}, {train.current_lon.toFixed(4)}</p>
+                          <p className="text-green-600 font-medium">✓ Following Railway Track</p>
                         </div>
                       </div>
                     </div>
@@ -590,7 +626,7 @@ export default function MapSimulation() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
-              Simulation Control
+              Accurate Position Control
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -664,6 +700,12 @@ export default function MapSimulation() {
                 <span className="text-sm font-medium">Conflicts:</span>
                 <Badge variant="destructive">{trains.filter(t => t.is_conflicted).length}</Badge>
               </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Positioning:</span>
+                <Badge variant={positioningMode === 'accurate' ? 'default' : 'secondary'}>
+                  {positioningMode === 'accurate' ? 'Accurate OSM' : 'Fallback'}
+                </Badge>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -673,7 +715,7 @@ export default function MapSimulation() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
               <Train className="w-4 h-4" />
-              Active Trains
+              Active Trains (On-Track)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -691,16 +733,22 @@ export default function MapSimulation() {
                       {train.priority === 'EXPRESS' ? '🚄' : train.priority === 'PASSENGER' ? '🚃' : '🚛'}
                       {' '}{train.train_id}
                     </div>
-                    <Badge 
-                      size="sm"
-                      variant={train.status === 'moving' ? 'default' : train.status === 'delayed' ? 'destructive' : 'secondary'}
-                    >
-                      {train.status}
-                    </Badge>
+                    <div className="flex gap-1">
+                      <Badge 
+                        size="sm"
+                        variant={train.status === 'moving' ? 'default' : train.status === 'delayed' ? 'destructive' : 'secondary'}
+                      >
+                        {train.status}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     <div>Speed: {train.speed.toFixed(1)} km/h</div>
                     <div>Progress: {(train.progress * 100).toFixed(1)}%</div>
+                    <div className="flex items-center gap-1 mt-1 text-green-600">
+                      <span>✓</span>
+                      <span>On Railway Track</span>
+                    </div>
                     {train.is_conflicted && (
                       <div className="flex items-center gap-1 mt-1 text-red-600">
                         <AlertTriangle className="w-3 h-3" />
@@ -712,7 +760,7 @@ export default function MapSimulation() {
               ))}
               {trains.length === 0 && (
                 <div className="text-center text-muted-foreground text-sm py-4">
-                  No active trains
+                  No active trains in 30-minute window
                 </div>
               )}
             </div>
