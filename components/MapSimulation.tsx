@@ -133,7 +133,7 @@ export default function MapSimulation() {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       const data = await response.json()
       setTrackPoints(data.track_polyline || [])
-      logger.info(`Loaded ${data.track_polyline?.length || 0} track points`)
+      console.log(`Loaded ${data.track_polyline?.length || 0} track points`)
     } catch (err) {
       console.error('Error fetching track data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch track data')
@@ -735,7 +735,6 @@ export default function MapSimulation() {
                     </div>
                     <div className="flex gap-1">
                       <Badge 
-                        size="sm"
                         variant={train.status === 'moving' ? 'default' : train.status === 'delayed' ? 'destructive' : 'secondary'}
                       >
                         {train.status}

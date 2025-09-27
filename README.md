@@ -1,24 +1,38 @@
-# Railway Controller Dashboard
+# ControllerSarthi - AI-Powered Train Traffic Control
 
-A production-ready Railway Controller’s Dashboard built with Next.js App Router, Tailwind CSS, React Query, Recharts, visx (Gantt), Leaflet/Mapbox (map), Axios (REST), and WebSockets for live updates. Dark, responsive UI with modular components.
+A comprehensive frontend application for railway traffic control and throughput optimization, built with React, Next.js, and TailwindCSS. Features role-based authentication, real-time monitoring, AI-powered optimization, and professional railway-themed design.
 
-## Features
-- Authentication: Mock login page storing a token and redirecting to protected routes
-- Navigation: Collapsible sidebar + topbar with controller info and logout
-- Dashboard: KPI cards (total trains, conflicts, avg delay, on-time %) and AI recommendation cards
-- Gantt: Interactive schedule view with conflict highlights and drag-to-reorder that POSTs /api/override
-- Map: Live train positions with markers showing TrainID, speed, delay, and priority color coding
-- Data: React Query + Axios for REST (caching, retries) and a resilient WebSocket hook for live updates
-- UX: Dark mode, responsive layout, smooth transitions via Framer Motion
+## 🚂 Features
 
-## Tech Stack
-- Framework: Next.js (App Router)
-- Styling: Tailwind CSS (dark mode, responsive)
-- Data: React Query, Axios
-- Charts: Recharts (KPIs), @visx/* (Gantt)
-- Map: react-leaflet (default) or Mapbox GL (optional)
-- Realtime: WebSockets
-- Animations: Framer Motion
+### Role-Based Authentication
+- **Controller Login**: Section-specific access with Section ID requirement
+- **Admin Login**: Full system access for user and section management
+- **Secure Routing**: Role-based page access control
+
+### Core Modules
+- **Dashboard**: Real-time KPIs, AI insights, and performance metrics
+- **Train Monitoring**: Live train status, position tracking, and conflict detection
+- **AI Optimization**: Schedule optimization and throughput maximization
+- **Disruption Management**: Real-time alerts and AI-powered suggestions
+- **Reports & Analytics**: Comprehensive performance analysis and reporting
+- **Admin Panel**: User management, section configuration, and system monitoring
+
+### Enhanced UI/UX
+- **Railway-Themed Design**: Professional dark theme with railway colors
+- **Real-time Notifications**: AI-powered alert system with priority levels
+- **Interactive Charts**: Data visualization with Recharts
+- **Responsive Design**: Mobile-first approach with touch-friendly interface
+- **Smooth Animations**: Framer Motion transitions and micro-interactions
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18, Next.js 14, TypeScript
+- **Styling**: TailwindCSS, shadcn/ui components
+- **Charts**: Recharts for data visualization
+- **Maps**: React Leaflet for train tracking
+- **State**: TanStack Query, React Hooks
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
 
 ## Project Structure (high level)
 - app/

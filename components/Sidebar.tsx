@@ -11,20 +11,44 @@ import {
   Settings, 
   Train,
   ChevronLeft,
-  X
+  X,
+  BarChart3,
+  AlertTriangle,
+  FileText,
+  Shield,
+  Activity
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/gantt", label: "Schedule", icon: Calendar },
-  { href: "/map", label: "Live Map", icon: Map },
-  { href: "/settings", label: "Settings", icon: Settings },
-]
+const getNavItems = (userRole: string) => {
+  const baseItems = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/trains", label: "Train Status", icon: Train },
+    { href: "/optimization", label: "Optimization", icon: BarChart3 },
+    { href: "/digital-twin", label: "Digital Twin", icon: Activity },
+    { href: "/disruptions", label: "Disruptions", icon: AlertTriangle },
+    { href: "/reports", label: "Reports", icon: FileText },
+    { href: "/map", label: "Live Map", icon: Map },
+    { href: "/settings", label: "Settings", icon: Settings },
+  ]
+
+  // Add admin panel for admin users
+  if (userRole === "admin") {
+    baseItems.splice(1, 0, { href: "/admin", label: "Admin Panel", icon: Shield })
+  }
+
+  return baseItems
+}
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true)
   const pathname = usePathname()
+  
+  // Get user role for navigation
+  const userData = typeof window !== "undefined" ? 
+    JSON.parse(localStorage.getItem("rcd_user") || '{"role": "controller"}') : 
+    { role: "controller" }
+  const navItems = getNavItems(userData.role)
 
   return (
     <>

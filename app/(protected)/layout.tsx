@@ -17,9 +17,15 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
     if (!authed) {
       router.replace("/login?redirect=/dashboard")
     } else {
+      // Check if user is trying to access admin routes without admin role
+      const userData = JSON.parse(localStorage.getItem("rcd_user") || '{}')
+      if (pathname.startsWith("/admin") && userData.role !== "admin") {
+        router.replace("/dashboard")
+        return
+      }
       setReady(true)
     }
-  }, [router])
+  }, [router, pathname])
 
   if (!ready) return null
 
