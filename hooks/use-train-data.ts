@@ -109,3 +109,38 @@ export function useTodayThroughput() {
     staleTime: 0,
   });
 }
+
+// Hook to get optimization data for current and optimized schedules
+export function useOptimizationData() {
+  return useQuery({
+    queryKey: ["optimization-data", typeof window !== 'undefined' ? localStorage.getItem("rcd_selected_date") : undefined],
+    queryFn: async () => {
+      // Get sectionId from localStorage
+      const userData = typeof window !== 'undefined' 
+        ? JSON.parse(localStorage.getItem("rcd_user") || '{}')
+        : {};
+      const sectionId = userData?.sectionId;
+      const selectedDate = typeof window !== 'undefined' ? localStorage.getItem("rcd_selected_date") : undefined
+      
+      if (!sectionId) {
+        console.warn('No sectionId found in localStorage');
+        return { currentSchedule: [], optimizedSchedule: [] };
+      }
+      
+      const dateParam = selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : ''
+      
+      // Fetch current schedule data
+      const { data: currentData } = await api.get(`/api/schedule/current/refresh?section_id=${encodeURIComponent(sectionId)}${dateParam}`);
+      
+      // For now, we'll use the same data for both current and optimized
+      // In the future, this could be enhanced to fetch actual optimized data
+      const currentSchedule = currentData || [];
+      const optimizedSchedule = currentData || []; // This will be enhanced later
+      
+      return { currentSchedule, optimizedSchedule };
+    },
+    enabled: typeof window !== 'undefined' && !!localStorage.getItem("rcd_user"),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+}

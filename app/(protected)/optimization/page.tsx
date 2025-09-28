@@ -18,7 +18,8 @@ import {
   Target,
   ArrowRight,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Train
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,23 +29,65 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts"
+import { useOptimizationData } from "@/hooks/use-train-data"
+import { formatHM } from "@/lib/day"
 
-// Mock optimization data
-const currentSchedule = [
-  { id: "12345", name: "Rajdhani Express", departure: "14:00", arrival: "15:30", priority: "HIGH", delay: 0 },
-  { id: "12346", name: "Shatabdi Express", departure: "14:15", arrival: "15:45", priority: "HIGH", delay: 12 },
-  { id: "12347", name: "Passenger Train", departure: "14:30", arrival: "16:00", priority: "MEDIUM", delay: 0 },
-  { id: "12348", name: "Freight Train", departure: "15:00", arrival: "17:00", priority: "LOW", delay: 25 },
-  { id: "12349", name: "Intercity Express", departure: "15:30", arrival: "17:00", priority: "HIGH", delay: 0 }
-]
+// Helper functions for data transformation and UI
+const getPriorityFromType = (trainType: string): string => {
+  switch (trainType?.toUpperCase()) {
+    case "EXPRESS":
+      return "HIGH"
+    case "FREIGHT":
+      return "LOW"
+    default:
+      return "MEDIUM"
+  }
+}
 
-const optimizedSchedule = [
-  { id: "12345", name: "Rajdhani Express", departure: "14:00", arrival: "15:30", priority: "HIGH", delay: 0, change: "none" },
-  { id: "12346", name: "Shatabdi Express", departure: "14:20", arrival: "15:50", priority: "HIGH", delay: 5, change: "delay_reduced" },
-  { id: "12347", name: "Passenger Train", departure: "14:35", arrival: "16:05", priority: "MEDIUM", delay: 0, change: "delay_added" },
-  { id: "12348", name: "Freight Train", departure: "16:00", arrival: "18:00", priority: "LOW", delay: 0, change: "moved" },
-  { id: "12349", name: "Intercity Express", departure: "15:30", arrival: "17:00", priority: "HIGH", delay: 0, change: "none" }
-]
+const getChangeColor = (change: string) => {
+  switch (change) {
+    case "delay_reduced":
+      return "bg-green-100 text-green-800 border-green-200"
+    case "delay_added":
+      return "bg-yellow-100 text-yellow-800 border-yellow-200"
+    case "moved":
+      return "bg-blue-100 text-blue-800 border-blue-200"
+    case "none":
+      return "bg-gray-100 text-gray-800 border-gray-200"
+    default:
+      return "bg-gray-100 text-gray-800 border-gray-200"
+  }
+}
+
+const getChangeIcon = (change: string) => {
+  switch (change) {
+    case "delay_reduced":
+      return <ArrowDown className="h-3 w-3" />
+    case "delay_added":
+      return <ArrowUp className="h-3 w-3" />
+    case "moved":
+      return <ArrowRight className="h-3 w-3" />
+    case "none":
+      return <CheckCircle2 className="h-3 w-3" />
+    default:
+      return <CheckCircle2 className="h-3 w-3" />
+  }
+}
+
+const getChangeText = (change: string) => {
+  switch (change) {
+    case "delay_reduced":
+      return "Delay Reduced"
+    case "delay_added":
+      return "Delay Added"
+    case "moved":
+      return "Rescheduled"
+    case "none":
+      return "No Change"
+    default:
+      return "No Change"
+  }
+}
 
 const throughputData = [
   { time: "06:00", current: 12, optimized: 15 },
@@ -90,6 +133,33 @@ export default function OptimizationPage() {
   const [selectedSuggestion, setSelectedSuggestion] = useState<any>(null)
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false)
   const [lastOptimization, setLastOptimization] = useState(new Date())
+  const [selectedTrain, setSelectedTrain] = useState<any>(null)
+  const [isTrainDetailOpen, setIsTrainDetailOpen] = useState(false)
+
+  // Fetch optimization data from backend
+  const { data: optimizationData, isLoading } = useOptimizationData()
+  
+  // Transform backend data for display
+  const currentSchedule = (optimizationData?.currentSchedule || []).map((train: any) => ({
+    id: train.schedule_id || train.train_id,
+    name: train.train?.train_id || `Train ${train.train_id}`,
+    departure: formatHM(new Date(train.planned_time)),
+    arrival: formatHM(new Date(train.arrival_time || train.planned_time)),
+    priority: getPriorityFromType(train.train?.type || train.train_type),
+    delay: train.delay_minutes || 0,
+    details: train.train || train // Store full details for modal
+  }))
+
+  const optimizedSchedule = (optimizationData?.optimizedSchedule || []).map((train: any) => ({
+    id: train.schedule_id || train.train_id,
+    name: train.train?.train_id || `Train ${train.train_id}`,
+    departure: formatHM(new Date(train.optimized_time)),
+    arrival: formatHM(new Date(train.arrival_time || train.optimized_time)), // Keep arrival time same
+    priority: getPriorityFromType(train.train?.type || train.train_type), // Keep priority same
+    delay: train.delay_minutes || 0,
+    change: train.delay_minutes > 0 ? "delay_reduced" : "none", // Simplified change logic
+    details: train.train || train // Store full details for modal
+  }))
 
   const handleOptimize = async () => {
     setIsOptimizing(true)
@@ -275,25 +345,52 @@ export default function OptimizationPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {currentSchedule.map((train) => (
-                        <TableRow key={train.id}>
-                          <TableCell className="font-medium">{train.name}</TableCell>
-                          <TableCell className="font-mono">{train.departure}</TableCell>
-                          <TableCell className="font-mono">{train.arrival}</TableCell>
-                          <TableCell>
-                            <Badge variant={train.priority === "HIGH" ? "destructive" : train.priority === "MEDIUM" ? "default" : "secondary"}>
-                              {train.priority}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {train.delay > 0 ? (
-                              <span className="text-red-600 font-medium">+{train.delay}m</span>
-                            ) : (
-                              <span className="text-green-600">On time</span>
-                            )}
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8">
+                            <div className="flex items-center justify-center gap-2">
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                              Loading schedule data...
+                            </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : currentSchedule.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            No trains found in current schedule
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        currentSchedule.map((train : any) => (
+                          <TableRow key={train.id}>
+                            <TableCell className="font-medium">
+                              <button
+                                onClick={() => {
+                                  setSelectedTrain(train.details)
+                                  setIsTrainDetailOpen(true)
+                                }}
+                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                              >
+                                {train.name}
+                              </button>
+                            </TableCell>
+                            <TableCell className="font-mono">{train.departure}</TableCell>
+                            <TableCell className="font-mono">{train.arrival}</TableCell>
+                            <TableCell>
+                              <Badge variant={train.priority === "HIGH" ? "destructive" : train.priority === "MEDIUM" ? "default" : "secondary"}>
+                                {train.priority}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {train.delay > 0 ? (
+                                <span className="text-red-600 font-medium">+{train.delay}m</span>
+                              ) : (
+                                <span className="text-green-600">On time</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -323,31 +420,58 @@ export default function OptimizationPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {optimizedSchedule.map((train) => (
-                        <TableRow key={train.id}>
-                          <TableCell className="font-medium">{train.name}</TableCell>
-                          <TableCell className="font-mono">{train.departure}</TableCell>
-                          <TableCell className="font-mono">{train.arrival}</TableCell>
-                          <TableCell>
-                            <Badge variant={train.priority === "HIGH" ? "destructive" : train.priority === "MEDIUM" ? "default" : "secondary"}>
-                              {train.priority}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {train.delay > 0 ? (
-                              <span className="text-red-600 font-medium">+{train.delay}m</span>
-                            ) : (
-                              <span className="text-green-600">On time</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`${getChangeColor(train.change)} flex items-center gap-1`}>
-                              {getChangeIcon(train.change)}
-                              {getChangeText(train.change)}
-                            </Badge>
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8">
+                            <div className="flex items-center justify-center gap-2">
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                              Loading optimized schedule...
+                            </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : optimizedSchedule.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            No optimized schedule available
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        optimizedSchedule.map((train : any) => (
+                          <TableRow key={train.id}>
+                            <TableCell className="font-medium">
+                              <button
+                                onClick={() => {
+                                  setSelectedTrain(train.details)
+                                  setIsTrainDetailOpen(true)
+                                }}
+                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                              >
+                                {train.name}
+                              </button>
+                            </TableCell>
+                            <TableCell className="font-mono">{train.departure}</TableCell>
+                            <TableCell className="font-mono">{train.arrival}</TableCell>
+                            <TableCell>
+                              <Badge variant={train.priority === "HIGH" ? "destructive" : train.priority === "MEDIUM" ? "default" : "secondary"}>
+                                {train.priority}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {train.delay > 0 ? (
+                                <span className="text-red-600 font-medium">+{train.delay}m</span>
+                              ) : (
+                                <span className="text-green-600">On time</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={`${getChangeColor(train.change)} flex items-center gap-1`}>
+                                {getChangeIcon(train.change)}
+                                {getChangeText(train.change)}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -565,6 +689,73 @@ export default function OptimizationPage() {
                 </Button>
                 <Button onClick={() => setIsSuggestionOpen(false)}>
                   Apply Suggestion
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Train Details Modal */}
+      <Dialog open={isTrainDetailOpen} onOpenChange={setIsTrainDetailOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Train className="h-5 w-5" />
+              Train Details: {selectedTrain?.train_id || 'Unknown'}
+            </DialogTitle>
+            <DialogDescription>
+              Complete information about this train's schedule and status
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTrain && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium mb-2">Train Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <div><span className="font-medium">Train ID:</span> {selectedTrain.train_id}</div>
+                    <div><span className="font-medium">Type:</span> {selectedTrain.type}</div>
+                    <div><span className="font-medium">Priority:</span> {selectedTrain.priority}</div>
+                    <div><span className="font-medium">Section:</span> {selectedTrain.section_id}</div>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Route Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <div><span className="font-medium">Origin:</span> {selectedTrain.origin}</div>
+                    <div><span className="font-medium">Destination:</span> {selectedTrain.destination}</div>
+                    <div><span className="font-medium">Platform Need:</span> {selectedTrain.platform_need ? 'Yes' : 'No'}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium mb-2">Schedule Times</h4>
+                  <div className="space-y-2 text-sm">
+                    <div><span className="font-medium">Planned Departure:</span> {formatHM(new Date(selectedTrain.departure_time))}</div>
+                    <div><span className="font-medium">Planned Arrival:</span> {formatHM(new Date(selectedTrain.arrival_time))}</div>
+                    <div><span className="font-medium">Status:</span> {selectedTrain.active ? 'Active' : 'Inactive'}</div>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Performance</h4>
+                  <div className="space-y-2 text-sm">
+                    <div><span className="font-medium">Current Delay:</span> 
+                      <span className={selectedTrain.delay_minutes > 0 ? 'text-red-600 ml-1' : 'text-green-600 ml-1'}>
+                        {selectedTrain.delay_minutes || 0} minutes
+                      </span>
+                    </div>
+                    <div><span className="font-medium">Speed:</span> {selectedTrain.speed_kmph || 'N/A'} km/h</div>
+                    <div><span className="font-medium">Progress:</span> {selectedTrain.progress_percent || 0}%</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsTrainDetailOpen(false)}>
+                  Close
                 </Button>
               </div>
             </div>

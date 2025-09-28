@@ -452,7 +452,7 @@ export default function MapSimulation() {
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <div className="animate-spin text-4xl mb-4">🚂</div>
-          <p className="text-lg font-medium">Loading accurate railway positioning system</p>
+          <p className="text-lg font-medium text-foreground">Loading accurate railway positioning system</p>
           <p className="text-sm text-muted-foreground mt-2">Fetching OSM railway geometry and train data...</p>
         </div>
       </div>
@@ -479,13 +479,13 @@ export default function MapSimulation() {
   const trackPolyline = trackPoints.map(point => [point.lat, point.lon] as [number, number])
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-screen p-6">
+    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-screen p-6 bg-background overflow-hidden">
       {/* Map Container */}
-      <div className="xl:col-span-3">
-        <Card className="h-full">
-          <CardHeader className="pb-3">
+      <div className="xl:col-span-3 h-full">
+        <Card className="h-full border-border bg-card">
+          <CardHeader className="pb-3 border-b border-border">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-card-foreground">
                 <Train className="w-5 h-5" />
                 Accurate Train Positioning - OSM Railway Routes
               </CardTitle>
@@ -501,7 +501,7 @@ export default function MapSimulation() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0 h-[calc(100%-5rem)]">
+          <CardContent className="p-0 h-[calc(100%-12rem)] overflow-hidden">
             <MapContainer
               center={[31.2540, 75.7047]} // Center between Jalandhar and Ludhiana
               zoom={11}
@@ -600,14 +600,14 @@ export default function MapSimulation() {
                           </Badge>
                         </div>
                         {train.is_conflicted && (
-                          <div className="flex items-center gap-1 mt-2 p-2 bg-red-50 rounded">
+                          <div className="flex items-center gap-1 mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded">
                             <AlertTriangle className="w-4 h-4 text-red-500" />
-                            <span className="text-red-700 text-xs">Schedule Conflict</span>
+                            <span className="text-red-700 dark:text-red-300 text-xs">Schedule Conflict</span>
                           </div>
                         )}
                         <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
                           <p>Position: {train.current_lat.toFixed(4)}, {train.current_lon.toFixed(4)}</p>
-                          <p className="text-green-600 font-medium">✓ Following Railway Track</p>
+                          <p className="text-green-600 dark:text-green-400 font-medium">✓ Following Railway Track</p>
                         </div>
                       </div>
                     </div>
@@ -619,149 +619,70 @@ export default function MapSimulation() {
         </Card>
       </div>
 
-      {/* Control Panel */}
+      {/* Sidebar */}
       <div className="xl:col-span-1 space-y-6">
-        {/* Status and Controls */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Accurate Position Control
+        {/* Route Coverage Information */}
+        <Card className="border-border bg-card h-full">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-card-foreground">
+              <MapPin className="w-5 h-5" />
+              Route Coverage
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <StatusIndicators />
-              
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant={isPlaying ? "default" : "outline"}
-                  onClick={() => setIsPlaying(!isPlaying)}
-                >
-                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  {isPlaying ? 'Pause' : 'Play'}
-                </Button>
-                
-                <ManualRefreshButton />
-                <WebSocketToggle />
-                
-                <Button size="sm" variant="outline" onClick={handleReset}>
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
-              </div>
-              
-              {/* Speed Control */}
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Update Speed</span>
-                  <span className="text-sm text-muted-foreground">{speed}x</span>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stations.length}</div>
+                  <div className="text-sm text-blue-600 dark:text-blue-400">Stations</div>
                 </div>
-                <Slider
-                  value={[speed]}
-                  onValueChange={(value) => setSpeed(value[0])}
-                  min={0.1}
-                  max={5.0}
-                  step={0.1}
-                  className="w-full"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Statistics */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              Live Statistics
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Active Trains:</span>
-                <Badge variant="default">{trains.length}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Railway Stations:</span>
-                <Badge variant="secondary">{stations.length}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Track Points:</span>
-                <Badge variant="outline">{trackPoints.length}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Moving Trains:</span>
-                <Badge variant="default">{trains.filter(t => t.status === 'moving').length}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Conflicts:</span>
-                <Badge variant="destructive">{trains.filter(t => t.is_conflicted).length}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Positioning:</span>
-                <Badge variant={positioningMode === 'accurate' ? 'default' : 'secondary'}>
-                  {positioningMode === 'accurate' ? 'Accurate OSM' : 'Fallback'}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Train List */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <Train className="w-4 h-4" />
-              Active Trains (On-Track)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {trains.map((train, index) => (
-                <motion.div
-                  key={`${train.train_id}-${index}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="p-2 border rounded-lg bg-card"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-medium text-sm">
-                      {train.priority === 'EXPRESS' ? '🚄' : train.priority === 'PASSENGER' ? '🚃' : '🚛'}
-                      {' '}{train.train_id}
-                    </div>
-                    <div className="flex gap-1">
-                      <Badge 
-                        variant={train.status === 'moving' ? 'default' : train.status === 'delayed' ? 'destructive' : 'secondary'}
-                      >
-                        {train.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    <div>Speed: {train.speed.toFixed(1)} km/h</div>
-                    <div>Progress: {(train.progress * 100).toFixed(1)}%</div>
-                    <div className="flex items-center gap-1 mt-1 text-green-600">
-                      <span>✓</span>
-                      <span>On Railway Track</span>
-                    </div>
-                    {train.is_conflicted && (
-                      <div className="flex items-center gap-1 mt-1 text-red-600">
-                        <AlertTriangle className="w-3 h-3" />
-                        Conflict
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-              {trains.length === 0 && (
-                <div className="text-center text-muted-foreground text-sm py-4">
-                  No active trains in 30-minute window
+                <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="text-2xl font-bold text-green-700 dark:text-green-300">{trains.length}</div>
+                  <div className="text-sm text-green-600 dark:text-green-400">Active Trains</div>
                 </div>
-              )}
+              </div>
+
+              {/* Track Information */}
+              <div className="space-y-3 text-sm">
+                <h4 className="font-semibold text-gray-900 mb-3">Track Information</h4>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Track Points:</span>
+                  <span className="font-semibold text-foreground">{trackPoints.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Coverage:</span>
+                  <span className="font-semibold text-foreground">Punjab Region</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Route Coverage:</span>
+                  <span className="font-semibold text-foreground">JUC-LDH-UMB</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Conflict Detection:</span>
+                  <Badge variant="default" className="text-xs">
+                    Active
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Positioning:</span>
+                  <Badge variant={positioningMode === 'accurate' ? 'default' : 'secondary'} className="text-xs">
+                    {positioningMode === 'accurate' ? 'On-Track' : 'Fallback'}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* System Information */}
+              <div className="space-y-3 text-sm pt-4 border-t border-border">
+                <h4 className="font-semibold text-gray-900 mb-3">System Information</h4>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Update Frequency:</span>
+                  <span className="font-semibold text-foreground">Real-time (5s)</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Last Update:</span>
+                  <span className="font-semibold text-foreground">{lastUpdate || 'Never'}</span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
