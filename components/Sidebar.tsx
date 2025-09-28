@@ -25,10 +25,10 @@ const getNavItems = (userRole: string) => {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/trains", label: "Train Status", icon: Train },
     { href: "/optimization", label: "Optimization", icon: BarChart3 },
-    { href: "/digital-twin", label: "Digital Twin", icon: Activity },
+    { href: "/digital-twin", label: "Simulation", icon: Map },
     { href: "/disruptions", label: "Disruptions", icon: AlertTriangle },
     { href: "/reports", label: "Reports", icon: FileText },
-    { href: "/map", label: "Live Map", icon: Map },
+    { href: "/map", label: "Digital Twin", icon: Activity },
     { href: "/settings", label: "Settings", icon: Settings },
   ]
 

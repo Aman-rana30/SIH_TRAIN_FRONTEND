@@ -203,15 +203,6 @@ export default function LoginPage() {
               </motion.div>
             </form>
 
-            {/* Demo Info */}
-            <div className="mt-6 p-3 rounded-lg bg-muted/50 border border-dashed">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="text-xs">
-                  Demo Mode
-                </Badge>
-                <span>Mock authentication for demonstration</span>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </motion.div>

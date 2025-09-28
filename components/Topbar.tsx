@@ -71,9 +71,7 @@ export default function Topbar() {
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-xl font-extrabold tracking-tight">
-              <span className="bg-gradient-to-r from-[hsl(var(--chart-5))] via-[hsl(var(--primary))] to-[hsl(var(--success))] bg-clip-text text-transparent drop-shadow-sm">
-                Controller Sarthi
-              </span>
+              Controller Sarthi
             </h1>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Wifi className="h-3 w-3" />
