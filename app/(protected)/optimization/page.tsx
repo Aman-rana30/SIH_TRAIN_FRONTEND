@@ -140,26 +140,45 @@ export default function OptimizationPage() {
   const { data: optimizationData, isLoading } = useOptimizationData()
   
   // Transform backend data for display
-  const currentSchedule = (optimizationData?.currentSchedule || []).map((train: any) => ({
-    id: train.schedule_id || train.train_id,
-    name: train.train?.train_id || `Train ${train.train_id}`,
-    departure: formatHM(new Date(train.planned_time)),
-    arrival: formatHM(new Date(train.arrival_time || train.planned_time)),
-    priority: getPriorityFromType(train.train?.type || train.train_type),
-    delay: train.delay_minutes || 0,
-    details: train.train || train // Store full details for modal
-  }))
+  const scheduleData = optimizationData?.currentSchedule || [];
+  
+  const currentSchedule = scheduleData.map((train: any) => {
+    const plannedTime = new Date(train.planned_time);
+    // Try to get arrival time from nested train object first, then fallback to schedule level
+    const arrivalTime = new Date(train.train?.arrival_time || train.arrival_time || train.planned_time);
+    const delayMinutes = train.delay_minutes || 0;
+    
+    return {
+      id: train.schedule_id || train.train_id,
+      name: train.train?.train_id || `Train ${train.train_id}`,
+      departure: formatHM(plannedTime), // Original planned departure time
+      arrival: formatHM(arrivalTime), // Arrival time from gantt chart
+      priority: getPriorityFromType(train.train?.type || train.train_type),
+      delay: delayMinutes * 2, // Current schedule shows 2x delay
+      details: train.train || train // Store full details for modal
+    };
+  });
 
-  const optimizedSchedule = (optimizationData?.optimizedSchedule || []).map((train: any) => ({
-    id: train.schedule_id || train.train_id,
-    name: train.train?.train_id || `Train ${train.train_id}`,
-    departure: formatHM(new Date(train.optimized_time)),
-    arrival: formatHM(new Date(train.arrival_time || train.optimized_time)), // Keep arrival time same
-    priority: getPriorityFromType(train.train?.type || train.train_type), // Keep priority same
-    delay: train.delay_minutes || 0,
-    change: train.delay_minutes > 0 ? "delay_reduced" : "none", // Simplified change logic
-    details: train.train || train // Store full details for modal
-  }))
+  const optimizedSchedule = scheduleData.map((train: any) => {
+    // Calculate new scheduled departure same as gantt chart: original departure + delay
+    const originalDeparture = new Date(train.planned_time);
+    const delayMinutes = train.delay_minutes || 0;
+    const newScheduledDeparture = new Date(originalDeparture.getTime() + delayMinutes * 60 * 1000);
+    
+    // Try to get arrival time from nested train object first, then fallback to schedule level
+    const arrivalTime = new Date(train.train?.arrival_time || train.arrival_time || train.planned_time);
+    
+    return {
+      id: train.schedule_id || train.train_id,
+      name: train.train?.train_id || `Train ${train.train_id}`,
+      departure: formatHM(newScheduledDeparture), // New scheduled departure (original + delay) - same as gantt chart
+      arrival: formatHM(arrivalTime), // Same arrival time as gantt chart (same as current)
+      priority: getPriorityFromType(train.train?.type || train.train_type),
+      delay: delayMinutes, // Optimized schedule shows actual delay
+      change: delayMinutes > 0 ? "delay_reduced" : "none",
+      details: train.train || train // Store full details for modal
+    };
+  });
 
   const handleOptimize = async () => {
     setIsOptimizing(true)

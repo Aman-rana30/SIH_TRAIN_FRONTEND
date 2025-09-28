@@ -132,10 +132,33 @@ export function useOptimizationData() {
       // Fetch current schedule data
       const { data: currentData } = await api.get(`/api/schedule/current/refresh?section_id=${encodeURIComponent(sectionId)}${dateParam}`);
       
-      // For now, we'll use the same data for both current and optimized
-      // In the future, this could be enhanced to fetch actual optimized data
-      const currentSchedule = currentData || [];
-      const optimizedSchedule = currentData || []; // This will be enhanced later
+      // Create current schedule (original planned times)
+      const currentSchedule = (currentData || []).map((train: any) => ({
+        ...train,
+        // Keep original planned_time for current schedule
+        planned_time: train.planned_time,
+        optimized_time: train.planned_time, // For current schedule, optimized = planned
+        // Ensure arrival_time is available at both levels for proper access
+        arrival_time: train.train?.arrival_time || train.arrival_time || train.planned_time,
+        train: {
+          ...train.train,
+          arrival_time: train.train?.arrival_time || train.arrival_time || train.planned_time
+        }
+      }));
+      
+      // Create optimized schedule (optimized times)
+      const optimizedSchedule = (currentData || []).map((train: any) => ({
+        ...train,
+        // Use optimized_time for optimized schedule
+        planned_time: train.planned_time, // Keep original for reference
+        optimized_time: train.optimized_time,
+        // Ensure arrival_time is available at both levels for proper access
+        arrival_time: train.train?.arrival_time || train.arrival_time || train.planned_time,
+        train: {
+          ...train.train,
+          arrival_time: train.train?.arrival_time || train.arrival_time || train.planned_time
+        }
+      }));
       
       return { currentSchedule, optimizedSchedule };
     },
